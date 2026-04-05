@@ -4,15 +4,31 @@ A Claude Code plugin for managing LLM-maintained personal knowledge bases.
 
 ## Setup
 
-1. Install this plugin in Claude Code
-2. Set the `KNOWLEDGE_BASE` environment variable in your shell profile:
+### 1. Install the plugin
+
+```bash
+claude plugin add maestroh/kb-wiki
+```
+
+### 2. Set the environment variable
+
+Add this to your `~/.zshrc` (or shell profile):
 
 ```bash
 export KNOWLEDGE_BASE="$HOME/Projects/knowledge"
 ```
 
-3. Run `/init` to create your knowledge base
-4. Open `$KNOWLEDGE_BASE` as an Obsidian vault
+Then restart your shell or run `source ~/.zshrc`.
+
+### 3. Initialize your knowledge base
+
+Open any repo in Claude Code and run:
+
+```
+/init
+```
+
+This creates your knowledge base at the path you configured. You can then open `$KNOWLEDGE_BASE` as an [Obsidian](https://obsidian.md) vault.
 
 ## Skills
 
