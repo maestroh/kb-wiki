@@ -7,7 +7,11 @@ A Claude Code plugin for managing LLM-maintained personal knowledge bases.
 ### 1. Install the plugin
 
 ```bash
-claude plugin add maestroh/kb-wiki
+# Add the marketplace
+claude plugin marketplace add maestroh/kb-wiki
+
+# Install the plugin
+claude plugin install claude-knowledge-plugin@claude-knowledge-plugin
 ```
 
 ### 2. Set the environment variable
@@ -25,14 +29,14 @@ Then restart your shell or run `source ~/.zshrc`.
 Open any repo in Claude Code and run:
 
 ```
-/init
+/kb-init
 ```
 
 This creates your knowledge base at the path you configured. You can then open `$KNOWLEDGE_BASE` as an [Obsidian](https://obsidian.md) vault.
 
 ## Skills
 
-- `/init [path]` — Initialize a new knowledge base
+- `/kb-init [path]` — Initialize a new knowledge base
 - `/topic create <name>` — Create a new topic namespace
 - `/ingest <topic> <file|url|text>` — Add source material to a topic
 - `/compile [topic]` — Compile raw sources into wiki articles

@@ -1,5 +1,5 @@
 ---
-name: init
+name: kb-init
 description: Initialize a new knowledge base. Creates directory structure, CLAUDE.md, indexes, Obsidian config, and git repo. Run once to set up.
 ---
 
@@ -10,14 +10,14 @@ Create a new knowledge base at the specified path or at `$KNOWLEDGE_BASE`.
 ## Environment
 
 The knowledge base path is determined by:
-1. An explicit path argument: `/init /path/to/kb`
+1. An explicit path argument: `/kb-init /path/to/kb`
 2. The `$KNOWLEDGE_BASE` environment variable
 3. If neither is set, ask the user where they want to create the knowledge base
 
 ## Usage
 
-- `/init` — Initialize at `$KNOWLEDGE_BASE`
-- `/init /path/to/my-kb` — Initialize at a specific path
+- `/kb-init` — Initialize at `$KNOWLEDGE_BASE`
+- `/kb-init /path/to/my-kb` — Initialize at a specific path
 
 ## Behavior
 
