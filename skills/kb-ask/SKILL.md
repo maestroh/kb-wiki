@@ -1,5 +1,5 @@
 ---
-name: ask
+name: kb-ask
 description: Query the knowledge base. Navigates indexes to find relevant articles and synthesizes an answer with optional mermaid diagrams.
 ---
 
@@ -16,7 +16,7 @@ export KNOWLEDGE_BASE="$HOME/Projects/knowledge"
 
 ## Usage
 
-`/ask <question>`
+`/kb-ask <question>`
 
 The question can be anything — factual, analytical, comparative, exploratory.
 
@@ -47,7 +47,7 @@ If the answer involves architecture, flows, relationships, processes, or hierarc
 ```markdown
 # <Diagram Title>
 
-*Generated from `/ask` query: "<original question>"*
+*Generated from `/kb-ask` query: "<original question>"*
 
 ```mermaid
 <diagram content>

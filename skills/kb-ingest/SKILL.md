@@ -1,5 +1,5 @@
 ---
-name: ingest
+name: kb-ingest
 description: Add source material (files, URLs, or notes) to a knowledge base topic. Preprocesses documents into markdown.
 ---
 
@@ -18,7 +18,7 @@ The plugin root is at `$CLAUDE_PLUGIN_ROOT` (set automatically by Claude Code).
 
 ## Usage
 
-`/ingest <topic> <source>`
+`/kb-ingest <topic> <source>`
 
 Where `<source>` is one of:
 - A file path (absolute or relative to current directory)
@@ -30,7 +30,7 @@ Where `<source>` is one of:
 ### 1. Validate
 
 - Check `$KNOWLEDGE_BASE` is set and exists
-- Check `topics/<topic>` exists. If not, ask the user if they want to create it (run the `/topic` skill logic)
+- Check `topics/<topic>` exists. If not, ask the user if they want to create it (run the `/kb-topic` skill logic)
 
 ### 2. Determine Input Type and Process
 
@@ -90,11 +90,11 @@ Read `$KNOWLEDGE_BASE/topics/<topic>/wiki/_index.md` and add the new file to the
 
 If the placeholder text "_None._" exists under that section, replace it.
 
-Does NOT compile into wiki articles — that's `/compile`'s job.
+Does NOT compile into wiki articles — that's `/kb-compile`'s job.
 
 ### 4. Confirm
 
 Tell the user:
 - What was ingested and where it was stored
 - Whether preprocessing succeeded, failed, or was skipped
-- Suggest running `/compile <topic>` to incorporate into the wiki
+- Suggest running `/kb-compile <topic>` to incorporate into the wiki

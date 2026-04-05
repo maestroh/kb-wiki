@@ -103,17 +103,17 @@ A Claude Code plugin for managing LLM-maintained personal knowledge bases.
 export KNOWLEDGE_BASE="$HOME/Projects/knowledge"
 ```
 
-3. Run `/init` to create your knowledge base
+3. Run `/kb-init` to create your knowledge base
 4. Open `$KNOWLEDGE_BASE` as an Obsidian vault
 
 ## Skills
 
-- `/init [path]` — Initialize a new knowledge base
-- `/topic create <name>` — Create a new topic namespace
-- `/ingest <topic> <file|url|text>` — Add source material to a topic
-- `/compile [topic]` — Compile raw sources into wiki articles
-- `/ask <question>` — Query the knowledge base
-- `/lint [topic]` — Health check the knowledge base
+- `/kb-init [path]` — Initialize a new knowledge base
+- `/kb-topic create <name>` — Create a new topic namespace
+- `/kb-ingest <topic> <file|url|text>` — Add source material to a topic
+- `/kb-compile [topic]` — Compile raw sources into wiki articles
+- `/kb-ask <question>` — Query the knowledge base
+- `/kb-lint [topic]` — Health check the knowledge base
 
 ## Requirements
 
@@ -133,7 +133,7 @@ git commit -m "feat: scaffold Claude Code plugin structure"
 
 ---
 
-### Task 2: `/init` Skill
+### Task 2: `/kb-init` Skill
 
 **Files:**
 - Create: `skills/init/SKILL.md`
@@ -155,14 +155,14 @@ Create a new knowledge base at the specified path or at `$KNOWLEDGE_BASE`.
 ## Environment
 
 The knowledge base path is determined by:
-1. An explicit path argument: `/init /path/to/kb`
+1. An explicit path argument: `/kb-init /path/to/kb`
 2. The `$KNOWLEDGE_BASE` environment variable
 3. If neither is set, ask the user where they want to create the knowledge base
 
 ## Usage
 
-- `/init` — Initialize at `$KNOWLEDGE_BASE`
-- `/init /path/to/my-kb` — Initialize at a specific path
+- `/kb-init` — Initialize at `$KNOWLEDGE_BASE`
+- `/kb-init /path/to/my-kb` — Initialize at a specific path
 
 ## Behavior
 
@@ -183,7 +183,7 @@ Create the following empty directory tree:
 └── docs/
 ```
 
-The `topics/` directory starts empty — topics are created via `/topic create <name>`.
+The `topics/` directory starts empty — topics are created via `/kb-topic create <name>`.
 
 ### 3. Create CLAUDE.md
 
@@ -246,7 +246,7 @@ Write `<path>/_index.md`:
 
 ## Topics
 
-_No topics yet. Use `/topic create <name>` to create one._
+_No topics yet. Use `/kb-topic create <name>` to create one._
 
 ## Cross-Topic Connections
 
@@ -321,7 +321,7 @@ Tell the user:
    export KNOWLEDGE_BASE="<path>"
    ```
 3. Open `<path>` as an Obsidian vault to browse the wiki
-4. Next step: run `/topic create <name>` to create your first topic
+4. Next step: run `/kb-topic create <name>` to create your first topic
 ```
 
 - [ ] **Step 2: Commit**
@@ -329,12 +329,12 @@ Tell the user:
 ```bash
 cd /Users/nael/Projects/claude-knowledge-plugin
 git add skills/init/SKILL.md
-git commit -m "feat: add /init skill for creating knowledge bases"
+git commit -m "feat: add /kb-init skill for creating knowledge bases"
 ```
 
 ---
 
-### Task 3: `/topic` Skill
+### Task 3: `/kb-topic` Skill
 
 **Files:**
 - Create: `skills/topic/SKILL.md`
@@ -363,13 +363,13 @@ export KNOWLEDGE_BASE="$HOME/Projects/knowledge"
 
 ## Usage
 
-`/topic create <name>`
+`/kb-topic create <name>`
 
 The `<name>` argument is the topic name. Use kebab-case (e.g., `agent-design`, `client-acme`, `project-x`).
 
 ## Behavior
 
-When the user runs `/topic create <name>`:
+When the user runs `/kb-topic create <name>`:
 
 1. **Validate** — Check that `$KNOWLEDGE_BASE` is set and the directory exists. Check that `$KNOWLEDGE_BASE/_index.md` exists (KB has been initialized). Check that `topics/<name>` does not already exist.
 
@@ -389,7 +389,7 @@ When the user runs `/topic create <name>`:
 
 ## Articles
 
-_No articles yet. Use `/compile <name>` after adding raw sources._
+_No articles yet. Use `/kb-compile <name>` after adding raw sources._
 
 ## Raw Sources (compiled)
 
@@ -410,8 +410,8 @@ _None._
    ```
 
 5. **Confirm** — Tell the user the topic was created and suggest next steps:
-   - Drop files into `topics/<name>/raw/` or use `/ingest <name> <file>`
-   - Run `/compile <name>` when ready to build wiki articles
+   - Drop files into `topics/<name>/raw/` or use `/kb-ingest <name> <file>`
+   - Run `/kb-compile <name>` when ready to build wiki articles
 ```
 
 - [ ] **Step 2: Commit**
@@ -419,12 +419,12 @@ _None._
 ```bash
 cd /Users/nael/Projects/claude-knowledge-plugin
 git add skills/topic/SKILL.md
-git commit -m "feat: add /topic skill for creating topic namespaces"
+git commit -m "feat: add /kb-topic skill for creating topic namespaces"
 ```
 
 ---
 
-### Task 4: `/ingest` Skill
+### Task 4: `/kb-ingest` Skill
 
 **Files:**
 - Create: `skills/ingest/SKILL.md`
@@ -454,7 +454,7 @@ The plugin root is at `$CLAUDE_PLUGIN_ROOT` (set automatically by Claude Code).
 
 ## Usage
 
-`/ingest <topic> <source>`
+`/kb-ingest <topic> <source>`
 
 Where `<source>` is one of:
 - A file path (absolute or relative to current directory)
@@ -466,7 +466,7 @@ Where `<source>` is one of:
 ### 1. Validate
 
 - Check `$KNOWLEDGE_BASE` is set and exists
-- Check `topics/<topic>` exists. If not, ask the user if they want to create it (run the `/topic` skill logic)
+- Check `topics/<topic>` exists. If not, ask the user if they want to create it (run the `/kb-topic` skill logic)
 
 ### 2. Determine Input Type and Process
 
@@ -526,14 +526,14 @@ Read `$KNOWLEDGE_BASE/topics/<topic>/wiki/_index.md` and add the new file to the
 
 If the placeholder text "_None._" exists under that section, replace it.
 
-Does NOT compile into wiki articles — that's `/compile`'s job.
+Does NOT compile into wiki articles — that's `/kb-compile`'s job.
 
 ### 4. Confirm
 
 Tell the user:
 - What was ingested and where it was stored
 - Whether preprocessing succeeded, failed, or was skipped
-- Suggest running `/compile <topic>` to incorporate into the wiki
+- Suggest running `/kb-compile <topic>` to incorporate into the wiki
 ```
 
 - [ ] **Step 2: Commit**
@@ -541,7 +541,7 @@ Tell the user:
 ```bash
 cd /Users/nael/Projects/claude-knowledge-plugin
 git add skills/ingest/SKILL.md
-git commit -m "feat: add /ingest skill for adding source material to topics"
+git commit -m "feat: add /kb-ingest skill for adding source material to topics"
 ```
 
 ---
@@ -1216,7 +1216,7 @@ git commit -m "feat: add video preprocessor — transcript + keyframe screenshot
 
 ---
 
-### Task 9: `/compile` Skill
+### Task 9: `/kb-compile` Skill
 
 **Files:**
 - Create: `skills/compile/SKILL.md`
@@ -1244,9 +1244,9 @@ export KNOWLEDGE_BASE="$HOME/Projects/knowledge"
 
 ## Usage
 
-- `/compile <topic>` — Compile a specific topic
-- `/compile` — Compile all topics with pending changes
-- `/compile --full <topic>` — Full recompile (ignore previous compilation state)
+- `/kb-compile <topic>` — Compile a specific topic
+- `/kb-compile` — Compile all topics with pending changes
+- `/kb-compile --full <topic>` — Full recompile (ignore previous compilation state)
 
 ## Behavior
 
@@ -1322,7 +1322,7 @@ Tell the user:
 - How many new articles were created
 - How many existing articles were updated
 - Any cross-topic connections found
-- Suggest running `/lint <topic>` to check quality
+- Suggest running `/kb-lint <topic>` to check quality
 
 ## Handling Large Topics
 
@@ -1340,12 +1340,12 @@ This prevents context overflow and ensures each article gets proper attention.
 ```bash
 cd /Users/nael/Projects/claude-knowledge-plugin
 git add skills/compile/SKILL.md
-git commit -m "feat: add /compile skill for synthesizing raw sources into wiki articles"
+git commit -m "feat: add /kb-compile skill for synthesizing raw sources into wiki articles"
 ```
 
 ---
 
-### Task 10: `/ask` Skill
+### Task 10: `/kb-ask` Skill
 
 **Files:**
 - Create: `skills/ask/SKILL.md`
@@ -1371,7 +1371,7 @@ export KNOWLEDGE_BASE="$HOME/Projects/knowledge"
 
 ## Usage
 
-`/ask <question>`
+`/kb-ask <question>`
 
 The question can be anything — factual, analytical, comparative, exploratory.
 
@@ -1402,7 +1402,7 @@ If the answer involves architecture, flows, relationships, processes, or hierarc
 ```markdown
 # <Diagram Title>
 
-*Generated from `/ask` query: "<original question>"*
+*Generated from `/kb-ask` query: "<original question>"*
 
 ```mermaid
 <diagram content>
@@ -1437,12 +1437,12 @@ If the wiki doesn't contain enough information to answer the question:
 ```bash
 cd /Users/nael/Projects/claude-knowledge-plugin
 git add skills/ask/SKILL.md
-git commit -m "feat: add /ask skill for querying the knowledge base"
+git commit -m "feat: add /kb-ask skill for querying the knowledge base"
 ```
 
 ---
 
-### Task 11: `/lint` Skill
+### Task 11: `/kb-lint` Skill
 
 **Files:**
 - Create: `skills/lint/SKILL.md`
@@ -1468,8 +1468,8 @@ export KNOWLEDGE_BASE="$HOME/Projects/knowledge"
 
 ## Usage
 
-- `/lint <topic>` — Lint a specific topic
-- `/lint` — Lint all topics
+- `/kb-lint <topic>` — Lint a specific topic
+- `/kb-lint` — Lint all topics
 
 ## Behavior
 
@@ -1534,7 +1534,7 @@ Items that affect wiki accuracy or indicate broken content.
 Items that indicate potential quality issues.
 
 - **Thin article:** [[some-concept]] has only 45 words and cites 1 source. Consider enriching with additional sources.
-- **Stale:** `raw/documents/old-report.md` was modified on 2026-04-01 but was last compiled on 2026-03-15. Run `/compile` to update.
+- **Stale:** `raw/documents/old-report.md` was modified on 2026-04-01 but was last compiled on 2026-03-15. Run `/kb-compile` to update.
 
 ## Suggestions
 
@@ -1549,7 +1549,7 @@ Opportunities to improve the knowledge base.
 
 Tell the user:
 - Summary of findings (e.g., "Found 2 critical issues, 3 warnings, and 4 suggestions")
-- Suggest specific actions: "Run `/compile <topic>` to fix stale articles" or "Review archive candidates and confirm with me"
+- Suggest specific actions: "Run `/kb-compile <topic>` to fix stale articles" or "Review archive candidates and confirm with me"
 - Ask if they'd like to act on any of the findings
 
 ## Principles
@@ -1565,7 +1565,7 @@ Tell the user:
 ```bash
 cd /Users/nael/Projects/claude-knowledge-plugin
 git add skills/lint/SKILL.md
-git commit -m "feat: add /lint skill for knowledge base health checks"
+git commit -m "feat: add /kb-lint skill for knowledge base health checks"
 ```
 
 ---
@@ -1582,26 +1582,26 @@ export KNOWLEDGE_BASE="/Users/nael/Projects/knowledge"
 
 - [ ] **Step 2: Initialize the knowledge base**
 
-Run: `/init`
+Run: `/kb-init`
 Verify: `$KNOWLEDGE_BASE` has CLAUDE.md, _index.md, .obsidian/, .gitignore, and is a git repo
 
 - [ ] **Step 3: Create a topic**
 
-Run: `/topic create agent-design`
+Run: `/kb-topic create agent-design`
 Verify: Directory structure exists at `topics/agent-design/`, root `_index.md` updated
 
 - [ ] **Step 4: Ingest a few sources**
 
 Run the following in Claude Code:
-1. `/ingest agent-design "Agents use a loop of observe-think-act to accomplish tasks. The key insight is that tool use enables grounding."`
-2. `/ingest agent-design "ReAct combines reasoning and acting in LLMs. The agent generates reasoning traces AND task-specific actions in an interleaved manner."`
-3. `/ingest agent-design "Planning is critical for complex tasks. Tree-of-thought prompting explores multiple reasoning paths before committing to one."`
+1. `/kb-ingest agent-design "Agents use a loop of observe-think-act to accomplish tasks. The key insight is that tool use enables grounding."`
+2. `/kb-ingest agent-design "ReAct combines reasoning and acting in LLMs. The agent generates reasoning traces AND task-specific actions in an interleaved manner."`
+3. `/kb-ingest agent-design "Planning is critical for complex tasks. Tree-of-thought prompting explores multiple reasoning paths before committing to one."`
 
 Verify: Three `.md` files in `topics/agent-design/raw/notes/`, all listed as pending in `wiki/_index.md`
 
 - [ ] **Step 5: Compile**
 
-Run: `/compile agent-design`
+Run: `/kb-compile agent-design`
 Verify:
 - Wiki articles created in `topics/agent-design/wiki/`
 - Articles contain wikilinks and Sources sections
@@ -1609,12 +1609,12 @@ Verify:
 
 - [ ] **Step 6: Ask a question**
 
-Run: `/ask "How do agent loops relate to planning strategies?"`
+Run: `/kb-ask "How do agent loops relate to planning strategies?"`
 Verify: Answer references specific wiki articles, draws connections
 
 - [ ] **Step 7: Run lint**
 
-Run: `/lint agent-design`
+Run: `/kb-lint agent-design`
 Verify: `_health.md` created with sections for critical/warnings/suggestions
 
 - [ ] **Step 8: Verify in Obsidian**

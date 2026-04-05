@@ -37,11 +37,11 @@ This creates your knowledge base at the path you configured. You can then open `
 ## Skills
 
 - `/kb-init [path]` — Initialize a new knowledge base
-- `/topic create <name>` — Create a new topic namespace
-- `/ingest <topic> <file|url|text>` — Add source material to a topic
-- `/compile [topic]` — Compile raw sources into wiki articles
-- `/ask <question>` — Query the knowledge base
-- `/lint [topic]` — Health check the knowledge base
+- `/kb-topic create <name>` — Create a new topic namespace
+- `/kb-ingest <topic> <file|url|text>` — Add source material to a topic
+- `/kb-compile [topic]` — Compile raw sources into wiki articles
+- `/kb-ask <question>` — Query the knowledge base
+- `/kb-lint [topic]` — Health check the knowledge base
 
 ## Requirements
 

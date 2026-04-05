@@ -1,5 +1,5 @@
 ---
-name: compile
+name: kb-compile
 description: Compile raw source materials into wiki articles. Synthesizes concepts, creates interlinked articles, and maintains indexes.
 ---
 
@@ -16,9 +16,9 @@ export KNOWLEDGE_BASE="$HOME/Projects/knowledge"
 
 ## Usage
 
-- `/compile <topic>` — Compile a specific topic
-- `/compile` — Compile all topics with pending changes
-- `/compile --full <topic>` — Full recompile (ignore previous compilation state)
+- `/kb-compile <topic>` — Compile a specific topic
+- `/kb-compile` — Compile all topics with pending changes
+- `/kb-compile --full <topic>` — Full recompile (ignore previous compilation state)
 
 ## Behavior
 
@@ -94,7 +94,7 @@ Tell the user:
 - How many new articles were created
 - How many existing articles were updated
 - Any cross-topic connections found
-- Suggest running `/lint <topic>` to check quality
+- Suggest running `/kb-lint <topic>` to check quality
 
 ## Handling Large Topics
 

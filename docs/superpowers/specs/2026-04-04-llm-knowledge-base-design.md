@@ -41,12 +41,12 @@ knowledge/
 ```
 claude-knowledge-plugin/
 ├── skills/
-│   ├── init/SKILL.md             # /init — scaffold a new knowledge base
-│   ├── topic/SKILL.md            # /topic — create topic namespaces
-│   ├── ingest/SKILL.md           # /ingest — add source material
-│   ├── compile/SKILL.md          # /compile — compile raw into wiki
-│   ├── ask/SKILL.md              # /ask — query the knowledge base
-│   └── lint/SKILL.md             # /lint — health checks
+│   ├── init/SKILL.md             # /kb-init — scaffold a new knowledge base
+│   ├── topic/SKILL.md            # /kb-topic — create topic namespaces
+│   ├── ingest/SKILL.md           # /kb-ingest — add source material
+│   ├── compile/SKILL.md          # /kb-compile — compile raw into wiki
+│   ├── ask/SKILL.md              # /kb-ask — query the knowledge base
+│   └── lint/SKILL.md             # /kb-lint — health checks
 ├── scripts/
 │   ├── preprocess-pdf.ts
 │   ├── preprocess-video.ts
@@ -67,13 +67,13 @@ claude-knowledge-plugin/
 
 ## Skills (Slash Commands)
 
-### `/init [path]`
+### `/kb-init [path]`
 
 Initialize a new knowledge base. Creates the full directory structure, CLAUDE.md, root `_index.md`, `.obsidian/` config, `.gitignore`, and initializes a git repo. If `path` is omitted, uses the current directory. Sets `$KNOWLEDGE_BASE` guidance for the user's shell profile.
 
 This is a one-time setup command. If a knowledge base already exists at the path, it should warn and exit without overwriting.
 
-### `/ingest <topic> <file|url|text>`
+### `/kb-ingest <topic> <file|url|text>`
 
 Add source material to a topic's `raw/` directory.
 
@@ -89,11 +89,11 @@ Add source material to a topic's `raw/` directory.
 
 **After preprocessing:**
 - Appends an entry to the topic's `wiki/_index.md` under "Raw Sources (pending)" to flag new uncompiled material
-- Does NOT compile into wiki articles — that's `/compile`'s job
+- Does NOT compile into wiki articles — that's `/kb-compile`'s job
 
 **If preprocessor unavailable:** stores raw file as-is and flags as "unprocessed" in the index.
 
-### `/compile [topic]`
+### `/kb-compile [topic]`
 
 Read new/changed raw materials and update the wiki.
 
@@ -112,9 +112,9 @@ Read new/changed raw materials and update the wiki.
 
 **Key principle:** Wiki articles are synthesized, not 1:1 copies. Multiple raw sources can contribute to one article. One raw source can spawn multiple articles. The LLM decides the right granularity.
 
-**Incremental by default.** Only processes what changed since last run. `_index.md` tracks compilation state. Full recompile available via `/compile --full <topic>`. If no topic specified, compiles all topics with pending changes.
+**Incremental by default.** Only processes what changed since last run. `_index.md` tracks compilation state. Full recompile available via `/kb-compile --full <topic>`. If no topic specified, compiles all topics with pending changes.
 
-### `/ask <question>`
+### `/kb-ask <question>`
 
 Query the knowledge base, answer in terminal.
 
@@ -127,7 +127,7 @@ Query the knowledge base, answer in terminal.
 
 **Output:** conversational answer in the terminal with `[[article]]` citations. When the answer benefits from a visual explanation (architecture, flows, relationships), the LLM generates a mermaid diagram saved as a `.md` file in the relevant topic's `wiki/` directory and references it in the answer. Obsidian renders mermaid natively.
 
-### `/lint [topic]`
+### `/kb-lint [topic]`
 
 Health check the knowledge base. Reports findings — never auto-fixes.
 
@@ -153,7 +153,7 @@ Health check the knowledge base. Reports findings — never auto-fixes.
 - ...
 ```
 
-### `/topic create <name>`
+### `/kb-topic create <name>`
 
 Bootstrap a new topic namespace.
 
@@ -240,7 +240,7 @@ Minimal `.obsidian/` config:
 
 ### Plugin Installation (Primary)
 
-The `claude-knowledge-plugin` is installed as a Claude Code plugin. Once installed, all five skills (`/ingest`, `/compile`, `/ask`, `/lint`, `/topic`) are available from any project directory on that machine.
+The `claude-knowledge-plugin` is installed as a Claude Code plugin. Once installed, all five skills (`/kb-ingest`, `/kb-compile`, `/kb-ask`, `/kb-lint`, `/kb-topic`) are available from any project directory on that machine.
 
 ### Environment Variable
 
@@ -293,13 +293,13 @@ This works because the two-hop index navigation is simple enough that Claude Cod
 
 **In scope for v1:**
 - Two-repo architecture: plugin repo (skills + scripts) and knowledge repo (pure data)
-- All six skills as a Claude Code plugin: `/init`, `/topic`, `/ingest`, `/compile`, `/ask`, `/lint`
+- All six skills as a Claude Code plugin: `/kb-init`, `/kb-topic`, `/kb-ingest`, `/kb-compile`, `/kb-ask`, `/kb-lint`
 - `KNOWLEDGE_BASE` env var for portability across machines
 - Cross-project access via plugin + lightweight CLAUDE.md fallback
 - Preprocessing scripts for PDF, video, and URL (in plugin repo)
 - CLAUDE.md, Obsidian config, gitignore (in knowledge repo)
 - Index-based LLM navigation for Q&A
-- Mermaid diagram generation in `/ask` responses
+- Mermaid diagram generation in `/kb-ask` responses
 - Git-based multi-machine sync
 
 **Not in scope for v1:**

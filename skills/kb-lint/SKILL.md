@@ -1,5 +1,5 @@
 ---
-name: lint
+name: kb-lint
 description: Health check the knowledge base. Finds inconsistencies, gaps, stale content, and suggests improvements.
 ---
 
@@ -16,8 +16,8 @@ export KNOWLEDGE_BASE="$HOME/Projects/knowledge"
 
 ## Usage
 
-- `/lint <topic>` — Lint a specific topic
-- `/lint` — Lint all topics
+- `/kb-lint <topic>` — Lint a specific topic
+- `/kb-lint` — Lint all topics
 
 ## Behavior
 
@@ -82,7 +82,7 @@ Items that affect wiki accuracy or indicate broken content.
 Items that indicate potential quality issues.
 
 - **Thin article:** [[some-concept]] has only 45 words and cites 1 source. Consider enriching with additional sources.
-- **Stale:** `raw/documents/old-report.md` was modified on 2026-04-01 but was last compiled on 2026-03-15. Run `/compile` to update.
+- **Stale:** `raw/documents/old-report.md` was modified on 2026-04-01 but was last compiled on 2026-03-15. Run `/kb-compile` to update.
 
 ## Suggestions
 
@@ -97,7 +97,7 @@ Opportunities to improve the knowledge base.
 
 Tell the user:
 - Summary of findings (e.g., "Found 2 critical issues, 3 warnings, and 4 suggestions")
-- Suggest specific actions: "Run `/compile <topic>` to fix stale articles" or "Review archive candidates and confirm with me"
+- Suggest specific actions: "Run `/kb-compile <topic>` to fix stale articles" or "Review archive candidates and confirm with me"
 - Ask if they'd like to act on any of the findings
 
 ## Principles

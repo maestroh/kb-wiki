@@ -38,7 +38,7 @@ Create the following empty directory tree:
 └── docs/
 ```
 
-The `topics/` directory starts empty — topics are created via `/topic create <name>`.
+The `topics/` directory starts empty — topics are created via `/kb-topic create <name>`.
 
 ### 3. Create CLAUDE.md
 
@@ -101,7 +101,7 @@ Write `<path>/_index.md`:
 
 ## Topics
 
-_No topics yet. Use `/topic create <name>` to create one._
+_No topics yet. Use `/kb-topic create <name>` to create one._
 
 ## Cross-Topic Connections
 
@@ -176,4 +176,4 @@ Tell the user:
    export KNOWLEDGE_BASE="<path>"
    ```
 3. Open `<path>` as an Obsidian vault to browse the wiki
-4. Next step: run `/topic create <name>` to create your first topic
+4. Next step: run `/kb-topic create <name>` to create your first topic

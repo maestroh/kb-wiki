@@ -30,7 +30,7 @@ No build step — skills are plain markdown, scripts run via `tsx`.
 
 ## Key Conventions
 
-- Skill names must NOT collide with Claude Code built-in slash commands (e.g., `/init` is reserved). Prefix with `kb-` if needed.
+- All skill names are prefixed with `kb-` to avoid collisions with Claude Code built-in slash commands.
 - Skills reference `$KNOWLEDGE_BASE` env var to locate the user's knowledge repo.
 - Preprocessing scripts are invoked by skills via `npx tsx <script> <args>` and output JSON to stdout.
 - All preprocessors produce markdown with YAML frontmatter (source path/URL, type, date).

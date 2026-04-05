@@ -1,5 +1,5 @@
 ---
-name: topic
+name: kb-topic
 description: Create a new topic namespace in the knowledge base. Use when starting research on a new subject.
 ---
 
@@ -17,13 +17,13 @@ export KNOWLEDGE_BASE="$HOME/Projects/knowledge"
 
 ## Usage
 
-`/topic create <name>`
+`/kb-topic create <name>`
 
 The `<name>` argument is the topic name. Use kebab-case (e.g., `agent-design`, `client-acme`, `project-x`).
 
 ## Behavior
 
-When the user runs `/topic create <name>`:
+When the user runs `/kb-topic create <name>`:
 
 1. **Validate** — Check that `$KNOWLEDGE_BASE` is set and the directory exists. Check that `$KNOWLEDGE_BASE/_index.md` exists (KB has been initialized). Check that `topics/<name>` does not already exist.
 
@@ -43,7 +43,7 @@ When the user runs `/topic create <name>`:
 
 ## Articles
 
-_No articles yet. Use `/compile <name>` after adding raw sources._
+_No articles yet. Use `/kb-compile <name>` after adding raw sources._
 
 ## Raw Sources (compiled)
 
@@ -64,5 +64,5 @@ _None._
    ```
 
 5. **Confirm** — Tell the user the topic was created and suggest next steps:
-   - Drop files into `topics/<name>/raw/` or use `/ingest <name> <file>`
-   - Run `/compile <name>` when ready to build wiki articles
+   - Drop files into `topics/<name>/raw/` or use `/kb-ingest <name> <file>`
+   - Run `/kb-compile <name>` when ready to build wiki articles
