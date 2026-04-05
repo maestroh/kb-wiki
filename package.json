@@ -1,0 +1,9 @@
+{
+  "name": "claude-knowledge-plugin",
+  "version": "0.1.0",
+  "type": "module",
+  "description": "Claude Code plugin for managing LLM-maintained personal knowledge bases",
+  "author": "nael",
+  "license": "MIT",
+  "keywords": ["knowledge-base", "wiki", "obsidian", "skills"]
+}

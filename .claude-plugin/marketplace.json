@@ -1,0 +1,15 @@
+{
+  "name": "claude-knowledge-plugin",
+  "description": "LLM-maintained personal knowledge base",
+  "owner": {
+    "name": "nael"
+  },
+  "plugins": [
+    {
+      "name": "claude-knowledge-plugin",
+      "description": "Skills for ingesting, compiling, querying, and maintaining an LLM-powered personal knowledge base",
+      "version": "0.1.0",
+      "source": "./"
+    }
+  ]
+}
