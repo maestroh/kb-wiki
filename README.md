@@ -42,6 +42,7 @@ This creates your knowledge base at the path you configured. You can then open `
 - `/kb-compile [topic]` — Compile raw sources into wiki articles
 - `/kb-ask <question>` — Query the knowledge base
 - `/kb-lint [topic]` — Health check the knowledge base
+- `/kb-sync` — Sync the knowledge base with GitHub (pull, commit, push)
 
 ## Requirements
 
