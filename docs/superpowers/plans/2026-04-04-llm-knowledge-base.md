@@ -406,7 +406,7 @@ _None._
 
 4. **Update root index** — Read `$KNOWLEDGE_BASE/_index.md` and add the new topic to the `## Topics` section. If the placeholder text "_No topics yet..." exists, replace it. Add the entry as:
    ```
-   - [[<name>]] — <brief description based on the name> (0 articles)
+   - [[topics/<name>/wiki/_index|<name>]] — <brief description based on the name> (0 articles)
    ```
 
 5. **Confirm** — Tell the user the topic was created and suggest next steps:
