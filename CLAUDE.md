@@ -42,5 +42,5 @@ No build step — skills are plain markdown, scripts run via `tsx`.
 Install via:
 ```bash
 claude plugin marketplace add maestroh/kb-wiki
-claude plugin install claude-knowledge-plugin@claude-knowledge-plugin
+claude plugin install kb-wiki@kb-wiki
 ```

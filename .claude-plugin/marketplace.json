@@ -1,14 +1,14 @@
 {
-  "name": "claude-knowledge-plugin",
+  "name": "kb-wiki",
   "description": "LLM-maintained personal knowledge base",
   "owner": {
     "name": "nael"
   },
   "plugins": [
     {
-      "name": "claude-knowledge-plugin",
+      "name": "kb-wiki",
       "description": "Skills for ingesting, compiling, querying, and maintaining an LLM-powered personal knowledge base",
-      "version": "0.1.0",
+      "version": "0.2.0",
       "source": "./"
     }
   ]

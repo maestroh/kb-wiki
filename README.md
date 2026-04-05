@@ -11,7 +11,7 @@ A Claude Code plugin for managing LLM-maintained personal knowledge bases.
 claude plugin marketplace add maestroh/kb-wiki
 
 # Install the plugin
-claude plugin install claude-knowledge-plugin@claude-knowledge-plugin
+claude plugin install kb-wiki@kb-wiki
 ```
 
 ### 2. Set the environment variable
