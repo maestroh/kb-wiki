@@ -14,7 +14,7 @@ The knowledge base root is at `$KNOWLEDGE_BASE`. If not set, tell the user:
 export KNOWLEDGE_BASE="$HOME/Projects/knowledge"
 ```
 
-The plugin root is at `$CLAUDE_PLUGIN_ROOT` (set automatically by Claude Code).
+The plugin root is at `${CLAUDE_PLUGIN_ROOT}` (set automatically by Claude Code).
 
 ## Usage
 
@@ -42,10 +42,10 @@ Detect the file type by extension and process accordingly:
 |-----------|-------------|---------------|
 | `.md` | `raw/notes/` | None — copy as-is |
 | `.txt` | `raw/notes/` | None — copy as-is |
-| `.pdf` | `raw/documents/` | Run: `npx tsx "$CLAUDE_PLUGIN_ROOT/scripts/preprocess-pdf.ts" <file> <output-dir>` |
-| `.docx` | `raw/documents/` | Run: `npx tsx "$CLAUDE_PLUGIN_ROOT/scripts/preprocess-pdf.ts" <file> <output-dir>` |
-| `.pptx` | `raw/documents/` | Run: `npx tsx "$CLAUDE_PLUGIN_ROOT/scripts/preprocess-pdf.ts" <file> <output-dir>` |
-| `.mp4`, `.mov`, `.webm`, `.mkv` | `raw/videos/` | Run: `npx tsx "$CLAUDE_PLUGIN_ROOT/scripts/preprocess-video.ts" <file> <output-dir>` |
+| `.pdf` | `raw/documents/` | Run: `npx tsx "${CLAUDE_PLUGIN_ROOT}/scripts/preprocess-pdf.ts" <file> <output-dir>` |
+| `.docx` | `raw/documents/` | Run: `npx tsx "${CLAUDE_PLUGIN_ROOT}/scripts/preprocess-pdf.ts" <file> <output-dir>` |
+| `.pptx` | `raw/documents/` | Run: `npx tsx "${CLAUDE_PLUGIN_ROOT}/scripts/preprocess-pdf.ts" <file> <output-dir>` |
+| `.mp4`, `.mov`, `.webm`, `.mkv` | `raw/videos/` | Run: `npx tsx "${CLAUDE_PLUGIN_ROOT}/scripts/preprocess-video.ts" <file> <output-dir>` |
 | `.png`, `.jpg`, `.jpeg`, `.gif`, `.svg`, `.webp` | `raw/images/` | None — copy as-is |
 | Other | `raw/` (root) | None — copy as-is, flag as "unprocessed" |
 
@@ -53,7 +53,7 @@ Copy the original file to the destination directory. If a preprocessor is availa
 
 **If source is a URL:**
 
-Run: `npx tsx "$CLAUDE_PLUGIN_ROOT/scripts/preprocess-url.ts" <url> "$KNOWLEDGE_BASE/topics/<topic>/raw/links/" "$KNOWLEDGE_BASE/topics/<topic>/raw/images/"`
+Run: `npx tsx "${CLAUDE_PLUGIN_ROOT}/scripts/preprocess-url.ts" <url> "$KNOWLEDGE_BASE/topics/<topic>/raw/links/" "$KNOWLEDGE_BASE/topics/<topic>/raw/images/"`
 
 This creates a `.md` file in `raw/links/` with the article content and downloads referenced images to `raw/images/`.
 
