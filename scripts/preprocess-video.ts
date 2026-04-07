@@ -1,4 +1,4 @@
-import { writeFileSync, mkdirSync, readdirSync, renameSync } from "node:fs";
+import { writeFileSync, readFileSync, mkdirSync, readdirSync, renameSync } from "node:fs";
 import { join, basename, extname } from "node:path";
 import { execSync } from "node:child_process";
 
@@ -88,7 +88,6 @@ function transcribeAudio(videoPath: string, outputDir: string): TranscriptSegmen
       { encoding: "utf-8", stdio: "pipe", timeout: 600000 }
     );
 
-    const { readFileSync } = require("node:fs");
     const jsonPath = join(outputDir, "audio.json");
     const whisperOutput = JSON.parse(readFileSync(jsonPath, "utf-8"));
     return whisperOutput.segments.map((s: { start: number; end: number; text: string }) => ({

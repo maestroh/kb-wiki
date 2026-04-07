@@ -1,7 +1,7 @@
 {
   "name": "kb-wiki",
   "description": "Skills for ingesting, compiling, querying, and maintaining an LLM-powered personal knowledge base",
-  "version": "0.4.2",
+  "version": "0.4.3",
   "author": {
     "name": "nael"
   },
