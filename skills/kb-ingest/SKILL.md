@@ -32,7 +32,32 @@ Where `<source>` is one of:
 - Check `$KNOWLEDGE_BASE` is set and exists
 - Check `topics/<topic>` exists. If not, ask the user if they want to create it (run the `/kb-topic` skill logic)
 
-### 2. Determine Input Type and Process
+### 2. Install Missing Dependencies
+
+Before preprocessing, check that required tools are available and install any that are missing.
+
+**npm packages** (always required):
+
+Check if `${CLAUDE_PLUGIN_ROOT}/scripts/node_modules` exists. If not, run:
+```bash
+cd "${CLAUDE_PLUGIN_ROOT}/scripts" && npm install
+```
+
+**System-level tools** (check only when the source type needs them):
+
+| Tool | Needed for | Check | Install (macOS) | Install (Linux) |
+|------|-----------|-------|-----------------|-----------------|
+| `pandoc` | `.docx`, `.pptx` files | `command -v pandoc` | `brew install pandoc` | `apt install pandoc` |
+| `ffmpeg` | video files (`.mp4`, `.mov`, `.webm`, `.mkv`) | `command -v ffmpeg` | `brew install ffmpeg` | `apt install ffmpeg` |
+| `whisper` | video files (transcription) | `command -v whisper` | `pip install openai-whisper` | `pip install openai-whisper` |
+
+Only check and install tools relevant to the current source type. If a tool is missing:
+
+1. Tell the user what's missing and why it's needed
+2. Show the install command and run it (use `brew` on macOS, `apt` on Linux)
+3. If installation fails, continue with the ingest but note that preprocessing will be skipped
+
+### 3. Determine Input Type and Process
 
 **If source is a file path:**
 
@@ -80,7 +105,7 @@ created: <YYYY-MM-DDTHH:MM:SS>
 <the user's text>
 ```
 
-### 3. Update Topic Index
+### 4. Update Topic Index
 
 Read `$KNOWLEDGE_BASE/topics/<topic>/wiki/_index.md` and add the new file to the `## Raw Sources (pending)` section:
 
@@ -92,7 +117,7 @@ If the placeholder text "_None._" exists under that section, replace it.
 
 Does NOT compile into wiki articles — that's `/kb-compile`'s job.
 
-### 4. Confirm
+### 5. Confirm
 
 Tell the user:
 - What was ingested and where it was stored
