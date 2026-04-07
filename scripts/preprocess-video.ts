@@ -35,7 +35,8 @@ export function buildTranscriptMarkdown(
       const frameTime = frameTimeMatch ? parseInt(frameTimeMatch[1]) : -1;
 
       if (frameTime <= segment.start) {
-        lines.push(`![${formatTimestamp(frameTime)}](${framesDir}/${frameName})`);
+        const encodedPath = encodeURI(`${framesDir}/${frameName}`);
+        lines.push(`![${formatTimestamp(frameTime)}](${encodedPath})`);
         lines.push("");
         frameIndex++;
       }
