@@ -54,7 +54,7 @@ function extractFrames(videoPath: string, outputDir: string, intervalSeconds: nu
   try {
     execSync(
       `ffmpeg -i "${videoPath}" -vf "fps=1/${intervalSeconds}" -q:v 2 "${join(outputDir, "frame_%03d.png")}" -y`,
-      { encoding: "utf-8", stdio: "pipe", timeout: 300000 }
+      { encoding: "utf-8", stdio: "pipe" }
     );
   } catch (err) {
     throw new Error(
@@ -80,12 +80,11 @@ function transcribeAudio(videoPath: string, outputDir: string): TranscriptSegmen
     execSync(`ffmpeg -i "${videoPath}" -ar 16000 -ac 1 -c:a pcm_s16le "${audioPath}" -y`, {
       encoding: "utf-8",
       stdio: "pipe",
-      timeout: 300000,
     });
 
     execSync(
       `whisper "${audioPath}" --output_format json --output_dir "${outputDir}" --model base`,
-      { encoding: "utf-8", stdio: "pipe", timeout: 600000 }
+      { encoding: "utf-8", stdio: "pipe" }
     );
 
     const jsonPath = join(outputDir, "audio.json");
