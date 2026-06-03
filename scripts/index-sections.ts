@@ -46,29 +46,39 @@ function bulletPaths(section: string): string[] {
     .filter((p) => p !== NONE);
 }
 
+// Returns the full "- ..." bullet lines of a section (excluding the _None._ placeholder).
+function bulletLines(section: string): string[] {
+  return section
+    .split("\n")
+    .map((l) => l.trim())
+    .filter((l) => l.startsWith("- "));
+}
+
+// Extract the path token from a bullet line: "- raw/notes/a.md — added ..." -> "raw/notes/a.md"
+function bulletLinePath(line: string): string {
+  const m = line.match(/^- (\S+)/);
+  return m ? m[1] : "";
+}
+
 export function listPending(body: string): string[] {
   return bulletPaths(getSection(body, "Raw Sources (pending)"));
 }
 
 export function addPending(body: string, relPath: string, date: string): string {
-  const current = listPending(body);
-  const lines = [...current, relPath].map(
-    (p) => `- ${p} — added ${date}, not yet compiled`
-  );
+  const existing = bulletLines(getSection(body, "Raw Sources (pending)"));
+  const lines = [...existing, `- ${relPath} — added ${date}, not yet compiled`];
   return replaceSection(body, "Raw Sources (pending)", lines.join("\n"));
 }
 
 export function moveToCompiled(body: string, paths: string[], date: string): string {
-  const remaining = listPending(body).filter((p) => !paths.includes(p));
-  const pendingContent = remaining.length
-    ? remaining.map((p) => `- ${p} — added ${date}, not yet compiled`).join("\n")
-    : NONE;
+  const pendingLines = bulletLines(getSection(body, "Raw Sources (pending)"));
+  const remaining = pendingLines.filter((l) => !paths.includes(bulletLinePath(l)));
+  const pendingContent = remaining.length ? remaining.join("\n") : NONE;
 
-  const compiledExisting = bulletPaths(getSection(body, "Raw Sources (compiled)"));
-  const compiledAll = [...compiledExisting, ...paths];
-  const compiledContent = compiledAll.length
-    ? compiledAll.map((p) => `- ${p} — compiled ${date}`).join("\n")
-    : NONE;
+  const compiledExisting = bulletLines(getSection(body, "Raw Sources (compiled)"));
+  const newlyCompiled = paths.map((p) => `- ${p} — compiled ${date}`);
+  const compiledAll = [...compiledExisting, ...newlyCompiled];
+  const compiledContent = compiledAll.length ? compiledAll.join("\n") : NONE;
 
   let out = replaceSection(body, "Raw Sources (pending)", pendingContent);
   out = replaceSection(out, "Raw Sources (compiled)", compiledContent);

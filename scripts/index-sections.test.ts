@@ -60,6 +60,14 @@ describe("addPending", () => {
     expect(listPending(out)).toEqual(["raw/links/c.md"]);
     expect(getSection(out, "Raw Sources (pending)")).not.toContain("_None._");
   });
+  it("preserves the original added-date of existing pending entries", () => {
+    // BODY already has a.md and b.md added 2026-06-01
+    const out = addPending(BODY, "raw/links/c.md", "2026-06-10");
+    const pending = getSection(out, "Raw Sources (pending)");
+    expect(pending).toContain("- raw/notes/a.md — added 2026-06-01, not yet compiled");
+    expect(pending).toContain("- raw/links/c.md — added 2026-06-10, not yet compiled");
+    expect(listPending(out)).toEqual(["raw/notes/a.md", "raw/documents/b.md", "raw/links/c.md"]);
+  });
 });
 
 describe("moveToCompiled", () => {
@@ -74,6 +82,12 @@ describe("moveToCompiled", () => {
     const out = moveToCompiled(BODY, ["raw/notes/a.md", "raw/documents/b.md"], "2026-06-02");
     expect(listPending(out)).toEqual([]);
     expect(getSection(out, "Raw Sources (pending)").trim()).toBe("_None._");
+  });
+  it("preserves the original added-date of the remaining pending entry", () => {
+    // a.md and b.md both added 2026-06-01; move only a.md
+    const out = moveToCompiled(BODY, ["raw/notes/a.md"], "2026-06-02");
+    const pending = getSection(out, "Raw Sources (pending)");
+    expect(pending).toContain("- raw/documents/b.md — added 2026-06-01, not yet compiled");
   });
 });
 
