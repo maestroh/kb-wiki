@@ -47,7 +47,7 @@ export function stringifyDoc(data: Record<string, any>, body: string): string {
 export function slugify(title: string): string {
   return title
     .toLowerCase()
-    .replace(/['']/g, "")
+    .replace(/['''‘’]/g, "")
     .replace(/[^a-z0-9]+/g, "-")
     .replace(/^-+|-+$/g, "")
     .replace(/-{2,}/g, "-");
@@ -58,5 +58,5 @@ export function isValidProjectName(name: string): boolean {
 }
 
 export function today(): string {
-  return new Date().toISOString().split("T")[0];
+  return new Date().toLocaleDateString("en-CA");
 }

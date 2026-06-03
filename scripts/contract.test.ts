@@ -4,6 +4,7 @@ import {
   stringifyDoc,
   slugify,
   isValidProjectName,
+  today,
   KB_VERSION,
 } from "./contract.js";
 
@@ -32,6 +33,12 @@ describe("slugify", () => {
   it("kebab-cases a title", () => {
     expect(slugify("The Agent Loop!")).toBe("the-agent-loop");
   });
+  it("strips curly apostrophes", () => {
+    expect(slugify("The Agent’s Memory")).toBe("the-agents-memory");
+  });
+  it("strips straight apostrophes", () => {
+    expect(slugify("don't")).toBe("dont");
+  });
 });
 
 describe("isValidProjectName", () => {
@@ -50,5 +57,11 @@ describe("isValidProjectName", () => {
 describe("KB_VERSION", () => {
   it("is 1", () => {
     expect(KB_VERSION).toBe(1);
+  });
+});
+
+describe("today", () => {
+  it("returns an ISO-style YYYY-MM-DD date", () => {
+    expect(today()).toMatch(/^\d{4}-\d{2}-\d{2}$/);
   });
 });
