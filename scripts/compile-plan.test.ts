@@ -81,4 +81,35 @@ describe("buildPlan", () => {
     );
     expect(buildPlan(kb, "p").pendingSources).toEqual([]);
   });
+
+  it("yields empty content for a pending source whose file is missing", () => {
+    const wiki = join(kb, "projects", "p", "wiki");
+    writeFileSync(
+      join(wiki, "_index.md"),
+      [
+        "---",
+        "kind: kb-project",
+        "name: p",
+        "description: test",
+        "keywords: []",
+        "created: 2026-06-01",
+        "---",
+        "",
+        "## Articles",
+        "",
+        "_No articles yet._",
+        "",
+        "## Raw Sources (pending)",
+        "",
+        "- raw/notes/missing.md — added 2026-06-01, not yet compiled",
+        "",
+        "## Raw Sources (compiled)",
+        "",
+        "_None._",
+      ].join("\n")
+    );
+    expect(buildPlan(kb, "p").pendingSources).toEqual([
+      { path: "raw/notes/missing.md", content: "" },
+    ]);
+  });
 });
