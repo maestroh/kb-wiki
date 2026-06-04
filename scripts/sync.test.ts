@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach } from "vitest";
-import { mkdtempSync, writeFileSync, rmSync } from "node:fs";
+import { mkdtempSync, writeFileSync, rmSync, existsSync } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { execSync } from "node:child_process";
@@ -50,5 +50,17 @@ describe("sync (offline local remote)", () => {
     expect(res.committed).toBe(false);
     expect(res.files).toEqual([]);
     expect(res.pushed).toBe(true);
+  });
+
+  it("treats shell metacharacters in the commit message literally (no injection)", () => {
+    writeFileSync(join(work, "x.md"), "x");
+    const marker = join(work, "INJECTED");
+    const msg = "subj `touch \"" + marker + "\"` $(touch \"" + marker + "\")";
+    sync(work, { message: msg });
+    // the substitution/backtick command must NOT have run
+    expect(existsSync(marker)).toBe(false);
+    // and the commit subject is the literal message
+    const subject = execSync("git log -1 --pretty=%s", { cwd: work, encoding: "utf-8" }).trim();
+    expect(subject).toBe(msg);
   });
 });

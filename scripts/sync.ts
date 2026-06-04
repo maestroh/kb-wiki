@@ -1,4 +1,4 @@
-import { execSync } from "node:child_process";
+import { execSync, execFileSync } from "node:child_process";
 
 export function tokenizeRemoteUrl(url: string, token: string): string {
   return url.replace(/^https:\/\//, `https://${token}@`);
@@ -20,8 +20,7 @@ export function sync(repoDir: string, opts: { token?: string; message?: string }
   const files = staged ? staged.split("\n").filter(Boolean) : [];
   let committed = false;
   if (files.length > 0) {
-    const msg = (opts.message ?? "kb sync").replace(/"/g, '\\"');
-    run(`git commit -m "${msg}"`);
+    execFileSync("git", ["commit", "-m", opts.message ?? "kb sync"], { cwd: repoDir });
     committed = true;
   }
 
@@ -32,7 +31,11 @@ export function sync(repoDir: string, opts: { token?: string; message?: string }
   if (opts.token) {
     const remoteUrl = run("git remote get-url origin");
     const branch = run("git rev-parse --abbrev-ref HEAD");
-    run(`git push "${tokenizeRemoteUrl(remoteUrl, opts.token)}" ${branch}`);
+    try {
+      run(`git push "${tokenizeRemoteUrl(remoteUrl, opts.token)}" "${branch}"`);
+    } catch {
+      throw new Error("git push failed (authenticated URL redacted)");
+    }
   } else {
     run("git push");
   }
