@@ -28,6 +28,7 @@ export function listFacts(kbRoot: string): string[] {
 }
 
 export function addFact(kbRoot: string, fact: string): { added: boolean } {
+  if (!fact.trim()) return { added: false };
   const { data, body } = readBody(kbRoot);
   const existing = listFacts(kbRoot).map(normalize);
   if (existing.includes(normalize(fact))) return { added: false };

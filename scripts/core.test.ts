@@ -31,4 +31,10 @@ describe("addFact / listFacts", () => {
     addFact(kb, "fact two");
     expect(listFacts(kb)).toEqual(["fact one", "fact two"]);
   });
+
+  it("ignores a blank or whitespace-only fact without writing", () => {
+    expect(addFact(kb, "   ").added).toBe(false);
+    expect(existsSync(join(kb, "core", "_index.md"))).toBe(false);
+    expect(listFacts(kb)).toEqual([]);
+  });
 });
