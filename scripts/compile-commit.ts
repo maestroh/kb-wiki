@@ -50,7 +50,7 @@ export function validateCommit(input: CommitInput): string[] {
 export function renderArticle(a: ArticleOp): string {
   const fm: ArticleFrontmatter = { kind: "kb-article", sources: a.sources };
   const body = `# ${a.title}\n\n*${a.summary}*\n\n${a.body}`;
-  return stringifyDoc(fm as unknown as Record<string, any>, body);
+  return stringifyDoc({ ...fm }, body);
 }
 
 export function commit(kbRoot: string, input: CommitInput): CommitResult {
@@ -59,6 +59,9 @@ export function commit(kbRoot: string, input: CommitInput): CommitResult {
     throw new Error(`compile-commit validation failed: ${errors.join("; ")}`);
   }
 
+  // The three write steps below are sequentially dependent but each is
+  // idempotent (slug-keyed upserts, deterministic count), so re-running the
+  // same input after a mid-write failure converges to the correct state.
   const projectDir = join(kbRoot, "projects", input.project);
   const wikiDir = join(projectDir, "wiki");
   mkdirSync(wikiDir, { recursive: true });
