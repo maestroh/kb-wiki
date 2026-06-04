@@ -1,107 +1,53 @@
 ---
 name: kb-compile
-description: Compile raw source materials into wiki articles. Synthesizes concepts, creates interlinked articles, and maintains indexes.
+description: Compile pending raw sources into synthesized wiki articles. Reads a deterministic brief, synthesizes articles, and commits them via the contract scripts.
 ---
 
 # Compile Wiki
 
-Read new and changed raw materials in a topic and compile them into synthesized wiki articles.
-
-## Environment
-
-The knowledge base root is at `$KNOWLEDGE_BASE`. If not set, tell the user:
-```bash
-export KNOWLEDGE_BASE="$HOME/Projects/knowledge"
-```
+Turn a project's pending raw sources into synthesized, interlinked wiki articles. You (the in-loop reasoner) do the synthesis; the scripts do all deterministic I/O.
 
 ## Usage
-
-- `/kb-compile <topic>` — Compile a specific topic
-- `/kb-compile` — Compile all topics with pending changes
-- `/kb-compile --full <topic>` — Full recompile (ignore previous compilation state)
+- `/kb-compile <project>` — compile one project
+- `/kb-compile` — resolve the active project (`.kb-active`) or ask
 
 ## Behavior
 
-### 1. Identify What Needs Compilation
-
-Read `$KNOWLEDGE_BASE/topics/<topic>/wiki/_index.md`. Look at the `## Raw Sources (pending)` section for new uncompiled sources. If `--full` flag is used, treat ALL non-archived sources as pending.
-
-If no pending sources exist, tell the user and exit.
-
-### 2. Read and Analyze Raw Sources
-
-For each pending raw source:
-1. Read the full content of the file
-2. Extract key concepts, facts, claims, and relationships
-3. Note what topics/concepts this source is about
-
-### 3. Match Against Existing Wiki
-
-Read the existing wiki articles listed in `_index.md`. For each concept found in the raw sources:
-- Does an existing article already cover this concept? → Update it
-- Is this a new concept? → Create a new article
-
-### 4. Create/Update Wiki Articles
-
-For each wiki article to create or update:
-
-**Article format:**
-
-```markdown
-# <Concept Title>
-
-*<One-line summary of the concept>*
-
-<Main content — synthesized from all contributing sources. Do NOT copy verbatim. Write a clear, informative article that weaves together information from multiple sources. Use your own structure and organization.>
-
-<Include [[wikilinks]] to other articles in this topic where concepts are related.>
-
-<For cross-topic connections, use [[topic-name/article-name]] format.>
-
-## Sources
-
-- `raw/documents/paper-on-agents.md` — primary source for agent loop description
-- `raw/notes/2026-04-03-thoughts.md` — additional context on planning strategies
+### 1. Get the brief
+```bash
+npx tsx "${CLAUDE_PLUGIN_ROOT}/scripts/compile-plan.ts" "$KNOWLEDGE_BASE" "<project>"
 ```
+Returns `{ project, existingArticles:[{slug,summary}], pendingSources:[{path,content}] }`.
+If `pendingSources` is empty, report "nothing to compile" and exit.
 
-**Key principles:**
-- Articles are SYNTHESIZED, not copied. Multiple sources contribute to one article. One source may spawn multiple articles.
-- Use clear, concise language. The wiki is a reference, not a transcript.
-- Link generously using [[wikilinks]] — connections are the wiki's power.
-- Every article MUST have a Sources section.
+### 2. Synthesize article operations
+Read every pending source's content and the existing article list. Decide, for each concept:
+- matches an existing article → `op: "update"` (same slug)
+- new concept → `op: "create"` (new kebab-case slug)
 
-### 5. Check for Cross-Topic Connections
+Produce a `CommitInput` JSON object:
+```json
+{
+  "project": "<project>",
+  "articles": [
+    { "op": "create|update", "slug": "<kebab>", "title": "<Title>",
+      "summary": "<one line>", "body": "<synthesized markdown with [[wikilinks]]>",
+      "sources": ["raw/.../file.md", "..."] }
+  ],
+  "consumedPending": ["raw/.../file.md", "..."]
+}
+```
+Rules: articles are SYNTHESIZED (not copied); link generously with `[[wikilinks]]`; cross-project links use `[[projects/<other>/wiki/<article>]]`; every article lists its contributing `sources`; `consumedPending` is exactly the pending paths you incorporated.
 
-After updating this topic's articles, read the root `_index.md` to see other topics. If any concepts in the newly compiled articles relate to other topics:
-- Add [[other-topic/article]] wikilinks in the article body
-- Update the root `_index.md` `## Cross-Topic Connections` section
+### 3. Commit
+Pipe the JSON to:
+```bash
+echo '<CommitInput JSON>' | npx tsx "${CLAUDE_PLUGIN_ROOT}/scripts/compile-commit.ts" "$KNOWLEDGE_BASE"
+```
+It validates, writes articles, moves consumed sources pending→compiled, updates both indexes, and returns `{written, updated, pendingRemaining}`. If it errors (validation), fix the JSON and retry — nothing was written.
 
-### 6. Update Indexes
+### 4. Report
+Summarize written/updated counts and `pendingRemaining`; suggest `/kb-lint <project>`.
 
-**Topic index** (`wiki/_index.md`):
-- Move compiled sources from `## Raw Sources (pending)` to `## Raw Sources (compiled)` with today's date
-- Update the `## Articles` section with any new or removed articles and their one-line summaries
-
-**Root index** (`_index.md`):
-- Update the article count for this topic
-- Update the topic's one-line description if it has evolved
-- Update cross-topic connections
-
-### 7. Report
-
-Tell the user:
-- How many raw sources were compiled
-- How many new articles were created
-- How many existing articles were updated
-- Any cross-topic connections found
-- Suggest running `/kb-lint <topic>` to check quality
-
-## Handling Large Topics
-
-If a topic has many pending sources (more than ~10), process them in batches:
-1. Read all pending sources first to get a full picture of concepts
-2. Plan which articles to create/update
-3. Write articles in batches of 3-5
-4. Update indexes after each batch
-
-This prevents context overflow and ensures each article gets proper attention.
+## Large topics
+If there are many pending sources, synthesize in batches of 3–5 and call `compile-commit` per batch (each batch's `consumedPending` covers only that batch).
