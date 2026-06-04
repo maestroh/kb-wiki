@@ -11,9 +11,9 @@ Create a new knowledge base at the path argument or `$KNOWLEDGE_BASE`.
 
 ### 1. Validate
 - Target path = argument > `$KNOWLEDGE_BASE` > ask the user.
-- If `CLAUDE.md` + `_index.md` already exist there, warn and exit without overwriting.
-- If a legacy `topics/` directory exists (old layout), run the migration instead:
+- If a legacy `topics/` directory exists (old layout), run the migration instead — check this BEFORE the "already initialized" guard below, since an old KB also has `CLAUDE.md` + `_index.md`:
   `npx tsx "${CLAUDE_PLUGIN_ROOT}/scripts/migrate.ts" "<path>"` and report its JSON result, then skip to step 7.
+- Otherwise, if the new layout already exists (`CLAUDE.md` + `_index.md` present, no `topics/`), warn and exit without overwriting.
 
 ### 2. Create directory tree
 ```
