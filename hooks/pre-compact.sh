@@ -6,6 +6,6 @@ set -euo pipefail
 [ -n "${KNOWLEDGE_BASE:-}" ] || exit 0
 [ -d "${KNOWLEDGE_BASE}/.git" ] || exit 0
 INPUT="$(cat)"
-echo "$INPUT" | npx tsx "${CLAUDE_PLUGIN_ROOT}/scripts/hook-precompact.ts" "${KNOWLEDGE_BASE}" >/dev/null 2>&1 || true
+printf '%s\n' "$INPUT" | npx tsx "${CLAUDE_PLUGIN_ROOT}/scripts/hook-precompact.ts" "${KNOWLEDGE_BASE}" >/dev/null 2>&1 || true
 npx tsx "${CLAUDE_PLUGIN_ROOT}/scripts/sync.ts" "${KNOWLEDGE_BASE}" >/dev/null 2>&1 || true
 exit 0
