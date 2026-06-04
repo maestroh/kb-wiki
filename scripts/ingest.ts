@@ -10,6 +10,17 @@ const EXT_MAP: Record<string, string> = {
   ".mp4": "videos", ".mov": "videos", ".webm": "videos", ".mkv": "videos",
 };
 
+// Returns a filename under `dir` that does not already exist, inserting a
+// numeric suffix before the extension on collision (e.g. "a.md" -> "a-2.md").
+function uniqueFilename(dir: string, filename: string): string {
+  if (!existsSync(join(dir, filename))) return filename;
+  const ext = extname(filename);
+  const stem = basename(filename, ext);
+  let n = 2;
+  while (existsSync(join(dir, `${stem}-${n}${ext}`))) n++;
+  return `${stem}-${n}${ext}`;
+}
+
 export function classifyDestination(filename: string): string {
   return EXT_MAP[extname(filename).toLowerCase()] ?? ".";
 }
@@ -38,16 +49,20 @@ export function ingest(kbRoot: string, project: string, source: IngestSource): I
   let rel: string;
   if (source.kind === "note") {
     const subdir = "notes";
-    const filename = `${timestamp()}-note.md`;
+    const noteDir = join(projectDir, "raw", subdir);
+    mkdirSync(noteDir, { recursive: true });
+    const desired = `${timestamp()}-note.md`;
+    const filename = uniqueFilename(noteDir, desired);
     rel = `raw/${subdir}/${filename}`;
-    mkdirSync(join(projectDir, "raw", subdir), { recursive: true });
-    const content = stringifyDoc({ created: new Date().toISOString() }, source.text.trim());
+    const content = stringifyDoc({ created: today() }, source.text.trim());
     writeFileSync(join(projectDir, rel), content);
   } else {
-    const filename = basename(source.filePath);
-    const subdir = classifyDestination(filename);
+    const rawBasename = basename(source.filePath);
+    const subdir = classifyDestination(rawBasename);
+    const rawSubdir = join(projectDir, "raw", subdir === "." ? "" : subdir);
+    mkdirSync(rawSubdir, { recursive: true });
+    const filename = uniqueFilename(rawSubdir, rawBasename);
     rel = subdir === "." ? `raw/${filename}` : `raw/${subdir}/${filename}`;
-    mkdirSync(join(projectDir, "raw", subdir === "." ? "" : subdir), { recursive: true });
     copyFileSync(source.filePath, join(projectDir, rel));
   }
 

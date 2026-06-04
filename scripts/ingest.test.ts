@@ -68,4 +68,21 @@ describe("ingest", () => {
   it("throws when the project wiki index is missing", () => {
     expect(() => ingest(kb, "nope", { kind: "note", text: "x" })).toThrow(/wiki\/_index\.md/);
   });
+
+  it("does not overwrite when two notes are ingested in the same minute", () => {
+    const r1 = ingest(kb, "p", { kind: "note", text: "first note" });
+    const r2 = ingest(kb, "p", { kind: "note", text: "second note" });
+    expect(r1.path).not.toBe(r2.path);
+    expect(existsSync(join(kb, "projects", "p", r1.path))).toBe(true);
+    expect(existsSync(join(kb, "projects", "p", r2.path))).toBe(true);
+    const { body } = parseDoc(readFileSync(join(kb, "projects", "p", "wiki", "_index.md"), "utf-8"));
+    expect(new Set(listPending(body)).size).toBe(2);
+  });
+
+  it("writes note created as a date-only value (no time component)", () => {
+    const res = ingest(kb, "p", { kind: "note", text: "x" });
+    const raw = readFileSync(join(kb, "projects", "p", res.path), "utf-8");
+    expect(raw).toMatch(/created: \d{4}-\d{2}-\d{2}\b/);
+    expect(raw).not.toMatch(/created:.*T\d{2}:\d{2}/); // not a full ISO timestamp
+  });
 });
