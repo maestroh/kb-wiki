@@ -11,12 +11,14 @@
   },
   "dependencies": {
     "gray-matter": "^4.0.3",
+    "js-yaml": "^4.2.0",
     "linkedom": "^0.18.0",
     "mammoth": "^1.8.0",
     "pdf-parse": "^1.1.1",
     "turndown": "^7.2.0"
   },
   "devDependencies": {
+    "@types/js-yaml": "^4.0.9",
     "@types/node": "^22.0.0",
     "@types/turndown": "^5.0.5",
     "tsx": "^4.19.0",

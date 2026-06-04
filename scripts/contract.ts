@@ -6,7 +6,7 @@ import jsyaml from "js-yaml";
 const STRINGIFY_OPTS = {
   engines: {
     yaml: {
-      parse: (str: string) => jsyaml.load(str),
+      parse: (str: string) => jsyaml.load(str) as object,
       stringify: (data: Record<string, any>) =>
         jsyaml.dump(data, { schema: jsyaml.JSON_SCHEMA }),
     },
