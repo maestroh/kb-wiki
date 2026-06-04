@@ -35,7 +35,8 @@ No build step — skills are plain markdown, scripts run via `tsx`.
 - Preprocessing scripts are invoked by skills via `npx tsx <script> <args>` and output JSON to stdout.
 - All preprocessors produce markdown with YAML frontmatter (source path/URL, type, date).
 - The knowledge base uses `[[wikilinks]]` (Obsidian-compatible) for cross-references.
-- `_index.md` files serve as the navigation hub at both root and topic levels — skills must keep them in sync.
+- `_index.md` files serve as the navigation hub at both root and project levels — skills must keep them in sync.
+- `kb-topic` is removed; namespaces are now "projects", auto-resolved during ingest, or explicitly created with `kb-project create`.
 
 ## Plugin Distribution
 
