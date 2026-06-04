@@ -1,5 +1,3 @@
-import { readFileSync } from "node:fs";
-import { join } from "node:path";
 import { RootFrontmatter, ProjectRegistryEntry } from "./contract.js";
 import { readRoot, findProject } from "./registry.js";
 
