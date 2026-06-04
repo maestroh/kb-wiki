@@ -1,77 +1,35 @@
 ---
 name: kb-ask
-description: Query the knowledge base. Navigates indexes to find relevant articles and synthesizes an answer with optional mermaid diagrams.
+description: Query the knowledge base. Resolves the relevant project(s), read-merges synthesized wiki with pending raw so answers are never stale, and synthesizes a cited answer.
 ---
 
 # Ask the Knowledge Base
 
-Answer questions by researching the wiki using index-based navigation.
-
-## Environment
-
-The knowledge base root is at `$KNOWLEDGE_BASE`. If not set, tell the user:
-```bash
-export KNOWLEDGE_BASE="$HOME/Projects/knowledge"
-```
-
 ## Usage
-
 `/kb-ask <question>`
-
-The question can be anything — factual, analytical, comparative, exploratory.
 
 ## Behavior
 
-### 1. Navigate to Relevant Content (Two-Hop Strategy)
+### 1. Resolve relevant project(s)
+Read the root `_index.md` registry frontmatter. Match the question against project descriptions/keywords (you may also run `resolve.ts` with question keywords). Pick the relevant project(s).
 
-**Hop 1:** Read `$KNOWLEDGE_BASE/_index.md`. Identify which topics are relevant to the question based on topic names and descriptions.
-
-**Hop 2:** For each relevant topic, read `$KNOWLEDGE_BASE/topics/<topic>/wiki/_index.md`. Identify which specific articles are likely to contain the answer based on article titles and summaries.
-
-**Read:** Read the relevant wiki articles. If the question requires depth beyond what the articles provide, go deeper into the `raw/` sources cited in the articles' Sources sections.
-
-### 2. Synthesize the Answer
-
-Answer the question conversationally in the terminal. Include:
-- The direct answer to the question
-- `[[article]]` citations so the user can read further in Obsidian
-- Relevant context from multiple articles/topics if applicable
-
-### 3. Generate Diagrams (When Appropriate)
-
-If the answer involves architecture, flows, relationships, processes, or hierarchies that would be clearer as a visual:
-
-1. Generate a mermaid diagram
-2. Save it as a `.md` file in the relevant topic's `wiki/` directory with a descriptive name (e.g., `diagram-agent-loop-flow.md`):
-
-```markdown
-# <Diagram Title>
-
-*Generated from `/kb-ask` query: "<original question>"*
-
-```mermaid
-<diagram content>
+### 2. Gather (read-merge)
+For each relevant project:
+```bash
+npx tsx "${CLAUDE_PLUGIN_ROOT}/scripts/retrieve.ts" "$KNOWLEDGE_BASE" "<project>"
 ```
+Returns `{ articles:[{slug,summary}], pending:[{path,content}] }`. Read the relevant article files for depth, AND read the `pending` raw content. **Merge both** — the wiki gives synthesized depth + cross-links; the pending raw gives the most recent, not-yet-compiled material. This is what keeps answers fresh despite deferred compile.
 
-## Sources
-- [[article-1]] — <what it contributed to the diagram>
-- [[article-2]] — <what it contributed>
-```
+### 3. Synthesize the answer
+Answer conversationally. Cite articles with `[[wikilinks]]`. When you used pending raw, note it ("from a just-added source not yet in the wiki"). Cross-reference projects when relevant.
 
-3. Reference the diagram in your terminal answer: "I've also generated a diagram at `wiki/diagram-<name>.md` that you can view in Obsidian."
+### 4. Diagrams (when they add clarity)
+For architectures/flows/relationships, generate a mermaid diagram and optionally save it to the project's `wiki/` as `diagram-<name>.md` with a Sources section; mention the path.
 
-Only generate diagrams when they genuinely add clarity. Simple factual questions don't need diagrams.
-
-### 4. Handle Missing Information
-
-If the wiki doesn't contain enough information to answer the question:
-- Say what you did find and where the gaps are
-- Suggest what raw sources might help (e.g., "Adding a paper on X to the `agent-design` topic would help answer this")
-- Offer to search the web for supplementary information
+### 5. Gaps
+If the KB lacks the answer, say what you found, where the gaps are, suggest what to ingest, and offer to search the web.
 
 ## Principles
-
-- Always start from the indexes — don't scan the filesystem
-- Cite your sources with [[wikilinks]]
-- Cross-reference across topics when relevant
-- Be honest about gaps in the knowledge base
+- Start from the registry/indexes — never scan the filesystem.
+- Always read-merge wiki ∪ pending so recency isn't missed.
+- Cite with [[wikilinks]]; be honest about gaps.
