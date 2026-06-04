@@ -40,9 +40,9 @@ Produce a `CommitInput` JSON object:
 Rules: articles are SYNTHESIZED (not copied); link generously with `[[wikilinks]]`; cross-project links use `[[projects/<other>/wiki/<article>]]`; every article lists its contributing `sources`; `consumedPending` is exactly the pending paths you incorporated.
 
 ### 3. Commit
-Pipe the JSON to:
+Write the `CommitInput` JSON to a temp file and feed it on stdin — a temp file avoids shell-quoting issues, since synthesized article bodies routinely contain apostrophes and newlines that would break a quoted `echo`:
 ```bash
-echo '<CommitInput JSON>' | npx tsx "${CLAUDE_PLUGIN_ROOT}/scripts/compile-commit.ts" "$KNOWLEDGE_BASE"
+npx tsx "${CLAUDE_PLUGIN_ROOT}/scripts/compile-commit.ts" "$KNOWLEDGE_BASE" < /tmp/kb-commit-input.json
 ```
 It validates, writes articles, moves consumed sources pending→compiled, updates both indexes, and returns `{written, updated, pendingRemaining}`. If it errors (validation), fix the JSON and retry — nothing was written.
 
