@@ -1,11 +1,11 @@
 ---
 name: kb-list
-description: List all topics in the knowledge base with article counts and status summaries.
+description: List all projects in the knowledge base with article counts and status summaries.
 ---
 
-# List Knowledge Base Topics
+# List Knowledge Base Projects
 
-Show an overview of all topics in the knowledge base.
+Show an overview of all projects in the knowledge base, read from the root registry.
 
 ## Environment
 
@@ -27,33 +27,31 @@ No arguments.
 - Check `$KNOWLEDGE_BASE` is set and the directory exists
 - Check `$KNOWLEDGE_BASE/_index.md` exists (KB has been initialized)
 
-### 2. Scan Topics
+### 2. Read the registry
 
-List all directories under `$KNOWLEDGE_BASE/topics/`. For each topic:
+Read the root `$KNOWLEDGE_BASE/_index.md` frontmatter. The `projects:` array is the source of truth for which projects exist — do NOT scan the filesystem. Each entry has `name`, `description`, `keywords`, `path`, and `articles`. Use the `articles` field for the article count.
 
-- Count wiki articles: number of `.md` files in `topics/<name>/wiki/` excluding `_index.md`
-- Count pending sources: read `topics/<name>/wiki/_index.md` and count entries under `## Raw Sources (pending)`
-- Count compiled sources: read `topics/<name>/wiki/_index.md` and count entries under `## Raw Sources (compiled)`
+For pending/compiled counts, read each project's `projects/<name>/wiki/_index.md` and count entries under `## Raw Sources (pending)` and `## Raw Sources (compiled)`.
 
 ### 3. Display
 
 Present a table to the user:
 
 ```
-| Topic          | Articles | Compiled | Pending |
+| Project        | Articles | Compiled | Pending |
 |----------------|----------|----------|---------|
 | agent-design   | 5        | 8        | 2       |
 | css            | 3        | 4        | 0       |
 ```
 
-If no topics exist, say:
+If the registry has no projects, say:
 ```
-No topics yet. Use `/kb-topic create <name>` to create one.
+No projects yet. They are auto-created on your first `/kb-ingest`, or explicitly with `/kb-project create <name>`.
 ```
 
 After the table, show a one-line summary:
 ```
-<N> topics, <M> total articles, <P> sources pending compilation
+<N> projects, <M> total articles, <P> sources pending compilation
 ```
 
-If any topics have pending sources, suggest running `/kb-compile <topic>`.
+If any projects have pending sources, suggest running `/kb-compile <project>`.

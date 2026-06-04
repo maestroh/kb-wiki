@@ -16,17 +16,17 @@ export KNOWLEDGE_BASE="$HOME/Projects/knowledge"
 
 ## Usage
 
-- `/kb-lint <topic>` — Lint a specific topic
-- `/kb-lint` — Lint all topics
+- `/kb-lint <project>` — Lint a specific project
+- `/kb-lint` — Lint all projects (from the root registry `projects:`)
 
 ## Behavior
 
-Run four checks, then write a report.
+Run four checks, then write a report. When linting all projects, read the project list from the root `_index.md` registry frontmatter (`projects:`) rather than scanning the filesystem.
 
 ### Check 1: Consistency
 
-For each topic being linted:
-1. Read all wiki articles in the topic
+For each project being linted:
+1. Read all wiki articles in the project
 2. Look for contradictory claims between articles (e.g., article A says "X uses approach Y" while article B says "X uses approach Z")
 3. When a contradiction is found, check the raw sources cited by each article to determine which is correct
 4. Report each contradiction with:
@@ -37,7 +37,7 @@ For each topic being linted:
 ### Check 2: Completeness
 
 1. Scan all wiki articles for `[[wikilinks]]` that point to articles that don't exist (broken links)
-2. Check if any raw sources in `raw/` (excluding `_archive/`) are not listed in `_index.md` at all (orphaned sources)
+2. Check if any raw sources in `raw/` (excluding `_archive/`) are not listed in the project's `wiki/_index.md` at all (orphaned sources)
 3. Identify articles that are very short (under 100 words) or cite only a single source — these may need more depth
 4. Report:
    - Broken wikilinks and what article they should point to
@@ -46,17 +46,17 @@ For each topic being linted:
 
 ### Check 3: Connections
 
-1. Read articles across ALL topics (not just the one being linted)
-2. Look for concepts that appear in multiple topics but aren't cross-linked
-3. Suggest new `[[topic/article]]` cross-links where topics share related concepts
-4. Suggest potential new bridging articles that could connect topics
+1. Read articles across ALL projects (not just the one being linted)
+2. Look for concepts that appear in multiple projects but aren't cross-linked
+3. Suggest new `[[projects/<other>/wiki/<article>]]` cross-links where projects share related concepts
+4. Suggest potential new bridging articles that could connect projects
 5. Report:
    - Missing cross-links with specific article pairs
    - Suggested new articles with proposed titles and brief rationale
 
 ### Check 4: Staleness
 
-1. For each compiled raw source in `_index.md`, check if the file's modification date is newer than the compiled date listed in the index
+1. For each compiled raw source in the project's `wiki/_index.md`, check if the file's modification date is newer than the compiled date listed in the index
 2. Flag articles whose underlying sources have changed since last compile
 3. Look for raw sources that are contradicted by newer sources — these are candidates for `_archive/`
 4. Report:
@@ -65,7 +65,7 @@ For each topic being linted:
 
 ## Writing the Report
 
-Write the report to `$KNOWLEDGE_BASE/_health.md` (or `$KNOWLEDGE_BASE/topics/<topic>/_health.md` if linting a single topic):
+Write the report to `$KNOWLEDGE_BASE/_health.md` (or `$KNOWLEDGE_BASE/projects/<project>/_health.md` if linting a single project):
 
 ```markdown
 # Health Report — <YYYY-MM-DD>
@@ -88,8 +88,8 @@ Items that indicate potential quality issues.
 
 Opportunities to improve the knowledge base.
 
-- **Cross-link:** [[agent-design/tool-use-patterns]] and [[coding-project/api-design]] both discuss API abstraction patterns — consider cross-linking.
-- **New article candidate:** "Prompt Engineering Techniques" appears across 3 topics but has no dedicated article.
+- **Cross-link:** [[projects/agent-design/wiki/tool-use-patterns]] and [[projects/coding-project/wiki/api-design]] both discuss API abstraction patterns — consider cross-linking.
+- **New article candidate:** "Prompt Engineering Techniques" appears across 3 projects but has no dedicated article.
 - **Archive candidate:** `raw/documents/draft-v1.md` appears to be superseded by `raw/documents/draft-v2.md`.
 ```
 
@@ -97,7 +97,7 @@ Opportunities to improve the knowledge base.
 
 Tell the user:
 - Summary of findings (e.g., "Found 2 critical issues, 3 warnings, and 4 suggestions")
-- Suggest specific actions: "Run `/kb-compile <topic>` to fix stale articles" or "Review archive candidates and confirm with me"
+- Suggest specific actions: "Run `/kb-compile <project>` to fix stale articles" or "Review archive candidates and confirm with me"
 - Ask if they'd like to act on any of the findings
 
 ## Principles

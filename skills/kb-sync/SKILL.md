@@ -1,45 +1,38 @@
 ---
 name: kb-sync
-description: Sync the knowledge base with its GitHub remote. Pulls, resolves conflicts, commits, and pushes.
+description: Sync the knowledge base with its GitHub remote. Delegates to sync.ts (stage → commit → pull --rebase → push) and resolves conflicts.
 ---
 
 # Sync Knowledge Base
 
-Commit and sync all knowledge base changes with the configured GitHub remote.
+Commit and sync all knowledge base changes with the configured GitHub remote. The deterministic git work is done by `sync.ts`; this skill handles validation and conflict resolution.
 
 ## Environment
-
-The knowledge base root is at `$KNOWLEDGE_BASE`. If not set, tell the user:
-```bash
-export KNOWLEDGE_BASE="$HOME/Projects/knowledge"
-```
+`$KNOWLEDGE_BASE` must be set. Scripts live at `${CLAUDE_PLUGIN_ROOT}/scripts/`.
 
 ## Usage
-
-`/kb-sync`
-
-No arguments. Operates on the entire knowledge base.
+`/kb-sync` — no arguments; operates on the entire knowledge base.
 
 ## Behavior
 
 ### 1. Validate
+- Check `$KNOWLEDGE_BASE` is set and the directory exists.
+- Check it's a git repo: `git -C "$KNOWLEDGE_BASE" rev-parse --git-dir`.
+- Check a remote is configured: `git -C "$KNOWLEDGE_BASE" remote`. If none:
+  ```
+  No remote configured. Add one with: git remote add origin <url>
+  ```
+  Exit without further action.
 
-- Check `$KNOWLEDGE_BASE` is set and the directory exists
-- Check it's a git repo: run `git -C "$KNOWLEDGE_BASE" rev-parse --git-dir`
-- Check a remote is configured: run `git -C "$KNOWLEDGE_BASE" remote`
-  - If no remote exists, tell the user:
-    ```
-    No remote configured. Add one with: git remote add origin <url>
-    ```
-    Exit without further action.
+### 2. Sync
+Delegate to the script, which stages → commits (if dirty) → `pull --rebase` → pushes, in that order, and injects `KNOWLEDGE_GIT_TOKEN` into the push URL when set (headless auth):
+```bash
+npx tsx "${CLAUDE_PLUGIN_ROOT}/scripts/sync.ts" "$KNOWLEDGE_BASE"
+```
+Report its `{committed, pushed, files}`. If nothing changed, tell the user "Nothing to sync — knowledge base is up to date."
 
-### 2. Pull
-
-Run `git -C "$KNOWLEDGE_BASE" pull --rebase`.
-
-If no conflicts, proceed to step 3.
-
-If conflicts arise, attempt auto-resolution using these rules:
+### 3. Conflict fallback
+If `sync.ts` exits non-zero due to a rebase conflict, resolve using these rules, then re-run `sync.ts`:
 
 | File type | Strategy | How |
 |-----------|----------|-----|
@@ -47,40 +40,12 @@ If conflicts arise, attempt auto-resolution using these rules:
 | Wiki articles (`*/wiki/*.md` except `_index.md`) | Keep remote, preserve local as `<name>.local.md` | Copy working tree version to `<name>.local.md`, then `git checkout --theirs <file>` |
 | Raw sources (`*/raw/**`) | Keep remote | `git checkout --theirs <file>` |
 
-After applying these rules, stage resolved files and run `git rebase --continue`.
+After applying these rules, stage resolved files, run `git -C "$KNOWLEDGE_BASE" rebase --continue`, then re-run `sync.ts`. If auto-resolution fails on any file, list the remaining conflicts and ask the user what to do. Do NOT force-push.
 
-If auto-resolution fails on any file, list the remaining conflicts and ask the user what to do. Do NOT proceed with commit/push until all conflicts are resolved.
-
-### 3. Commit
-
-- Stage all changes: run `git -C "$KNOWLEDGE_BASE" add -A`
-- Check if there are staged changes: run `git -C "$KNOWLEDGE_BASE" diff --cached --quiet`
-  - If no changes, tell the user "Nothing to sync — knowledge base is up to date" and exit
-- Generate a commit message summarizing what changed by inspecting the staged diff. Format:
-  ```
-  sync: <summary>
-  ```
-  Examples:
-  - `sync: 3 articles updated in css`
-  - `sync: 2 sources ingested, 1 article created in agent-design`
-  - `sync: conflict resolved in css/_index.md, 2 articles updated`
-
-### 4. Push
-
-Run `git -C "$KNOWLEDGE_BASE" push`.
-
-If push fails (e.g., rejected due to new remote commits), tell the user and suggest re-running `/kb-sync`.
-
-### 5. Report
-
-Tell the user:
-- What was pulled (if anything)
-- What was committed and pushed
-- Any conflicts that were auto-resolved (and how)
-- Current sync state
+### 4. Report
+Tell the user what was committed and pushed (from the script result), any conflicts that were auto-resolved (and how), and the current sync state.
 
 ## What This Skill Does NOT Do
-
 - Create GitHub repos or configure remotes
-- Handle git authentication issues
+- Handle git authentication beyond `KNOWLEDGE_GIT_TOKEN`
 - Sync selectively — it always syncs the entire knowledge base
