@@ -1,179 +1,96 @@
 ---
 name: kb-init
-description: Initialize a new knowledge base. Creates directory structure, CLAUDE.md, indexes, Obsidian config, and git repo. Run once to set up.
+description: Initialize a new knowledge base. Creates the projects/core layout, CLAUDE.md, root registry index, Obsidian config, and git repo. Run once to set up.
 ---
 
 # Initialize Knowledge Base
 
-Create a new knowledge base at the specified path or at `$KNOWLEDGE_BASE`.
-
-## Environment
-
-The knowledge base path is determined by:
-1. An explicit path argument: `/kb-init /path/to/kb`
-2. The `$KNOWLEDGE_BASE` environment variable
-3. If neither is set, ask the user where they want to create the knowledge base
-
-## Usage
-
-- `/kb-init` — Initialize at `$KNOWLEDGE_BASE`
-- `/kb-init /path/to/my-kb` — Initialize at a specific path
+Create a new knowledge base at the path argument or `$KNOWLEDGE_BASE`.
 
 ## Behavior
 
 ### 1. Validate
+- Target path = argument > `$KNOWLEDGE_BASE` > ask the user.
+- If `CLAUDE.md` + `_index.md` already exist there, warn and exit without overwriting.
+- If a legacy `topics/` directory exists (old layout), run the migration instead:
+  `npx tsx "${CLAUDE_PLUGIN_ROOT}/scripts/migrate.ts" "<path>"` and report its JSON result, then skip to step 7.
 
-- Determine the target path (argument > `$KNOWLEDGE_BASE` > ask user)
-- If the directory already contains a `CLAUDE.md` and `_index.md`, warn that a knowledge base already exists here and exit without overwriting
-- Create the target directory if it doesn't exist
-
-### 2. Create Directory Structure
-
-Create the following empty directory tree:
-
+### 2. Create directory tree
 ```
 <path>/
-├── topics/
+├── projects/        # one dir per project (created on demand)
+├── core/            # always-loaded core memory
 ├── .obsidian/
 └── docs/
 ```
 
-The `topics/` directory starts empty — topics are created via `/kb-topic create <name>`.
-
-### 3. Create CLAUDE.md
-
-Write `<path>/CLAUDE.md`:
-
+### 3. Create `core/_index.md`
 ```markdown
-# Knowledge Base
+---
+kind: kb-core
+version: 1
+---
 
-This is an LLM-maintained personal knowledge base. The LLM writes and maintains all wiki content — you rarely edit it directly.
+# Core Memory
 
-## Directory Structure
-
-topics/<topic-name>/
-  raw/          — Original + preprocessed source materials
-    notes/      — Handwritten notes (.md)
-    documents/  — PDFs, PPTs, DOCs + their .md conversions
-    videos/     — Video files + transcript .md files
-    links/      — Web clippings saved as .md
-    images/     — Referenced images
-    _archive/   — Outdated sources excluded from compilation
-  wiki/         — LLM-compiled articles
-    _index.md   — Topic index with article summaries
-    *.md        — Individual concept articles
-_index.md       — Master index across all topics
-_health.md      — Latest lint report
-
-## Rules
-
-- Never edit files in raw/ — they are source-of-truth originals
-- Never delete raw sources — move outdated ones to raw/_archive/
-- Wiki articles are synthesized from multiple sources, not 1:1 copies
-- Always update _index.md files after any wiki change
-- Use [[wikilinks]] for same-topic links
-- Use [[topic-name/article]] for cross-topic links
-- Each wiki article must have a "Sources" section listing contributing raw files
-
-## Index Navigation
-
-When answering questions or compiling:
-1. Read root _index.md first to find relevant topics
-2. Read topic wiki/_index.md to find specific articles
-3. Read articles as needed
-4. Go deeper into raw/ sources only if articles lack sufficient detail
-
-## Wiki Article Format
-
-Each wiki article should follow this structure:
-- Clear title as H1
-- One-line summary in italics below the title
-- Core content with [[wikilinks]] to related articles
-- ## Sources section at the bottom listing raw files that contributed
+_Durable, always-loaded facts about the user. Maintained via `/kb-core`._
 ```
 
-### 4. Create Root _index.md
-
-Write `<path>/_index.md`:
-
+### 4. Create root `_index.md` (the registry)
 ```markdown
+---
+kind: kb-root
+version: 1
+projects: []
+---
+
 # Knowledge Base Index
 
-## Topics
+## Projects
 
-_No topics yet. Use `/kb-topic create <name>` to create one._
+_No projects yet. They are created automatically the first time you ingest, or explicitly with `/kb-project create <name>`._
 
-## Cross-Topic Connections
+## Cross-Project Connections
 
 _None yet._
 ```
 
-### 5. Create .obsidian Config
+### 5. Create `CLAUDE.md`
+```markdown
+# Knowledge Base
 
-Write `<path>/.obsidian/app.json`:
+An LLM-maintained personal knowledge base. The LLM writes and maintains wiki content.
 
-```json
-{
-  "useMarkdownLinks": false,
-  "showUnsupportedFiles": false,
-  "userIgnoreFilters": ["docs/"]
-}
+## Layout
+projects/<name>/
+  raw/        — source-of-truth originals (notes, documents, videos, links, images, _archive)
+  planning/   — plans, specs, todos
+  assets/     — datasets, designs, large artifacts
+  wiki/       — synthesized articles + _index.md
+core/_index.md — always-loaded durable facts about the user
+_index.md      — root registry (frontmatter `projects:`) + cross-project connections
+
+## Rules
+- Never edit raw/ — originals; archive outdated ones to raw/_archive/.
+- raw/ is the source of truth; wiki/ is derived via /kb-compile. Deferring compile never loses data.
+- Wiki articles are synthesized from multiple sources, each with a Sources section.
+- Same-project links: [[article]]. Cross-project: [[projects/<other>/wiki/<article>]].
+- The root registry frontmatter is the source of truth for which projects exist.
 ```
 
-Write `<path>/.obsidian/graph.json`:
+### 6. Obsidian config + `.gitignore`
+- `.obsidian/app.json`: `{ "useMarkdownLinks": false, "showUnsupportedFiles": false, "userIgnoreFilters": ["docs/"] }`
+- `.gitignore`:
+  ```
+  .obsidian/workspace.json
+  .obsidian/workspace-mobile.json
+  .kb-active
+  ```
 
-```json
-{
-  "collapse-filter": false,
-  "search": "",
-  "showTags": false,
-  "showAttachments": true,
-  "hideUnresolved": false,
-  "showOrphans": true,
-  "collapse-color-groups": false,
-  "colorGroups": [],
-  "collapse-display": false,
-  "lineSizeMultiplier": 1,
-  "nodeSizeMultiplier": 1,
-  "textFadeMultiplier": 0,
-  "collapse-forces": false,
-  "centerStrength": 0.518713248970312,
-  "repelStrength": 10,
-  "linkStrength": 1,
-  "linkDistance": 250,
-  "scale": 1,
-  "close": false
-}
-```
-
-### 6. Create .gitignore
-
-Write `<path>/.gitignore`:
-
-```
-.obsidian/workspace.json
-.obsidian/workspace-mobile.json
-```
-
-### 7. Initialize Git
-
-Run `git init` in the target directory, then stage and commit all files:
-
+### 7. Git init + commit
 ```bash
-cd <path>
-git init
-git add -A
-git commit -m "feat: initialize knowledge base"
+cd <path> && git init && git add -A && git commit -m "feat: initialize knowledge base"
 ```
 
-### 8. Guide the User
-
-Tell the user:
-
-1. Knowledge base created at `<path>`
-2. If `$KNOWLEDGE_BASE` is not set, tell them to add it to their shell profile:
-   ```bash
-   export KNOWLEDGE_BASE="<path>"
-   ```
-3. Open `<path>` as an Obsidian vault to browse the wiki
-4. Next step: run `/kb-topic create <name>` to create your first topic
+### 8. Guide the user
+Report the path; remind them to `export KNOWLEDGE_BASE="<path>"`; open as an Obsidian vault; next step is just to start ingesting — projects are auto-created.
