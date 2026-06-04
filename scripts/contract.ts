@@ -1,4 +1,17 @@
 import matter from "gray-matter";
+import jsyaml from "js-yaml";
+
+// Custom gray-matter stringify options: use JSON_SCHEMA so js-yaml doesn't
+// re-quote YYYY-MM-DD strings as if they were date scalars.
+const STRINGIFY_OPTS = {
+  engines: {
+    yaml: {
+      parse: (str: string) => jsyaml.load(str),
+      stringify: (data: Record<string, any>) =>
+        jsyaml.dump(data, { schema: jsyaml.JSON_SCHEMA }),
+    },
+  },
+};
 
 export const KB_VERSION = 1;
 
@@ -39,9 +52,22 @@ export function parseDoc(md: string): ParsedDoc {
   return { data: data as Record<string, any>, body: content.trim() };
 }
 
+// js-yaml parses bare `YYYY-MM-DD` values into Date objects; coerce them back
+// to `YYYY-MM-DD` strings so round-tripping frontmatter stays byte-stable.
+function coerceDates(value: any): any {
+  if (value instanceof Date) return value.toISOString().split("T")[0];
+  if (Array.isArray(value)) return value.map(coerceDates);
+  if (value && typeof value === "object") {
+    return Object.fromEntries(
+      Object.entries(value).map(([k, v]) => [k, coerceDates(v)])
+    );
+  }
+  return value;
+}
+
 export function stringifyDoc(data: Record<string, any>, body: string): string {
   // gray-matter appends a trailing newline after frontmatter; normalize the body.
-  return matter.stringify(`${body.trim()}\n`, data);
+  return matter.stringify(`${body.trim()}\n`, coerceDates(data), STRINGIFY_OPTS);
 }
 
 export function slugify(title: string): string {

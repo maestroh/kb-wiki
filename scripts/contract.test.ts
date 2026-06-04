@@ -27,6 +27,17 @@ describe("parseDoc / stringifyDoc", () => {
     expect(data).toEqual({});
     expect(body).toBe("# Just a heading");
   });
+
+  it("keeps a YYYY-MM-DD frontmatter date byte-stable across a round-trip", () => {
+    const md = "---\nkind: kb-project\ncreated: 2026-06-01\n---\n\n# Title\n\nBody.";
+    const { data, body } = parseDoc(md);
+    const out = stringifyDoc(data, body);
+    expect(out).toContain("created: 2026-06-01");
+    expect(out).not.toMatch(/created: 2026-06-01T/); // not an ISO timestamp
+    // and a second round-trip is stable too
+    const reparsed = parseDoc(out);
+    expect(stringifyDoc(reparsed.data, reparsed.body)).toBe(out);
+  });
 });
 
 describe("slugify", () => {
