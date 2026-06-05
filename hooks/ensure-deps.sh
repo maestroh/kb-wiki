@@ -5,8 +5,8 @@
 # runs. Every script except sync.ts imports it, so without this the skills/hooks
 # fail on first invocation. No-op once node_modules exists; never fails a session.
 set -euo pipefail
-SCRIPTS="${CLAUDE_PLUGIN_ROOT:-}/scripts"
 [ -n "${CLAUDE_PLUGIN_ROOT:-}" ] || exit 0
+SCRIPTS="${CLAUDE_PLUGIN_ROOT}/scripts"
 [ -d "$SCRIPTS" ] || exit 0
 [ -f "$SCRIPTS/package.json" ] || exit 0
 if [ ! -d "$SCRIPTS/node_modules" ]; then

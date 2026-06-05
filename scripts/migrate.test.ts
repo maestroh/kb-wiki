@@ -20,6 +20,7 @@ describe("rewriteWikilinks", () => {
     );
     expect(rewriteWikilinks("[[css/wiki/_index|css]]", projects)).toBe("[[projects/css/wiki/_index|css]]");
     expect(rewriteWikilinks("[[ai/foo|Alias]]", projects)).toBe("[[projects/ai/wiki/foo|Alias]]");
+    expect(rewriteWikilinks("[[css/sub/deep]]", projects)).toBe("[[projects/css/wiki/sub/deep]]");
   });
 
   it("leaves intra-project links and unknown/already-migrated refs untouched", () => {
@@ -77,7 +78,10 @@ describe("migrate (integration on a fixture KB)", () => {
     writeFileSync(join(kb, "_index.md"), ["# KB", "", "- [[topics/ai/wiki/_index|AI]]"].join("\n"));
     // old-layout CLAUDE.md + a .gitignore with topics/ patterns
     writeFileSync(join(kb, "CLAUDE.md"), "# Knowledge Base\n\n## Directory Structure\n\ntopics/<topic-name>/\n  wiki/\n");
-    writeFileSync(join(kb, ".gitignore"), [".obsidian/workspace.json", ".DS_Store", "topics/*/raw/videos/*.mp4"].join("\n") + "\n");
+    writeFileSync(
+      join(kb, ".gitignore"),
+      [".obsidian/workspace.json", ".DS_Store", "topics/*/raw/videos/*.mp4", "node_modules/gatsby-source-topics/"].join("\n") + "\n"
+    );
   });
   afterEach(() => rmSync(kb, { recursive: true, force: true }));
 
@@ -85,7 +89,7 @@ describe("migrate (integration on a fixture KB)", () => {
     const res = migrate(kb);
     expect(res.renamed).toBe(1);
     expect(res.indexesUpgraded).toBe(1);
-    expect(res.linksRewritten).toBeGreaterThanOrEqual(1);
+    expect(res.linksRewritten).toBe(2); // agent-loop.md + root _index.md
 
     expect(existsSync(join(kb, "projects", "ai", "wiki", "_index.md"))).toBe(true);
     expect(existsSync(join(kb, "topics"))).toBe(false);
@@ -118,11 +122,19 @@ describe("migrate (integration on a fixture KB)", () => {
     expect(claude).toContain("projects/<name>");
     expect(claude).not.toContain("topics/<topic-name>");
 
-    // .gitignore: .kb-active added, topics/ repointed to projects/
+    // .gitignore: .kb-active added, topics/ pattern repointed, unrelated substring preserved
     const gi = readFileSync(join(kb, ".gitignore"), "utf-8");
     expect(gi).toContain(".kb-active");
     expect(gi).toContain("projects/*/raw/videos/*.mp4");
     expect(gi).not.toContain("topics/*");
+    expect(gi).toContain("node_modules/gatsby-source-topics/"); // unrelated substring untouched
+  });
+
+  it("leaves a customized CLAUDE.md (no topics/< structural marker) untouched", () => {
+    const custom = "# My KB\n\nNotes: I migrated this from the old topics/ scheme by hand.\n";
+    writeFileSync(join(kb, "CLAUDE.md"), custom);
+    migrate(kb);
+    expect(readFileSync(join(kb, "CLAUDE.md"), "utf-8")).toBe(custom);
   });
 
   it("refuses to run when projects/ already exists", () => {

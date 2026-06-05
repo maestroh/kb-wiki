@@ -120,18 +120,27 @@ function scaffoldNewLayout(kbRoot: string): void {
     writeFileSync(coreIndex, CORE_INDEX_MD);
   }
 
-  // CLAUDE.md — refresh the stale old-layout template; leave a customized one alone.
+  // CLAUDE.md — refresh the stale old-layout template; leave a customized one
+  // alone. Match the structural `topics/<topic-name>/` marker, not a bare
+  // "topics/" substring, so a custom CLAUDE.md merely mentioning the old layout
+  // in prose isn't clobbered.
   const claudePath = join(kbRoot, "CLAUDE.md");
-  if (!existsSync(claudePath) || readFileSync(claudePath, "utf-8").includes("topics/")) {
+  if (!existsSync(claudePath) || readFileSync(claudePath, "utf-8").includes("topics/<")) {
     writeFileSync(claudePath, NEW_CLAUDE_MD);
   }
 
   // .gitignore — repoint topics/ → projects/ and ensure .kb-active is ignored.
+  // Only rewrite lines that actually start with `topics/` (a pattern), so an
+  // unrelated entry containing the substring (e.g. node_modules/some-topics/)
+  // is left untouched.
   const giPath = join(kbRoot, ".gitignore");
   if (!existsSync(giPath)) {
     writeFileSync(giPath, STANDARD_GITIGNORE);
   } else {
-    let gi = readFileSync(giPath, "utf-8").replace(/topics\//g, "projects/");
+    let gi = readFileSync(giPath, "utf-8")
+      .split("\n")
+      .map((l) => (l.trimStart().startsWith("topics/") ? l.replace("topics/", "projects/") : l))
+      .join("\n");
     if (!gi.split("\n").some((l) => l.trim() === ".kb-active")) {
       gi = gi.replace(/\n*$/, "") + "\n.kb-active\n";
     }
