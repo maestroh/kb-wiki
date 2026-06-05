@@ -1,4 +1,4 @@
-import { readFileSync, writeFileSync, renameSync, existsSync, readdirSync, statSync } from "node:fs";
+import { readFileSync, writeFileSync, renameSync, existsSync, readdirSync, statSync, mkdirSync } from "node:fs";
 import { join } from "node:path";
 import {
   parseDoc,
@@ -10,8 +10,29 @@ import {
 } from "./contract.js";
 import { listArticles } from "./index-sections.js";
 
-export function rewriteWikilinks(text: string): string {
-  return text.replace(/\[\[topics\//g, "[[projects/");
+// Rewrite legacy wikilinks to the new projects/ form. Passing `projectNames`
+// also catches the old short-form cross-project links (`[[<project>/article]]`
+// and `[[<project>/wiki/...]]`) that have no `topics/` prefix — without a
+// project list we can only safely rewrite the explicit `[[topics/...]]` form.
+export function rewriteWikilinks(text: string, projectNames: string[] = []): string {
+  const projects = new Set(projectNames);
+  return text.replace(/\[\[([^\]|]+)(\|[^\]]+)?\]\]/g, (m, rawTarget: string, alias = "") => {
+    let target = rawTarget;
+    if (target.startsWith("topics/")) {
+      target = "projects/" + target.slice("topics/".length);
+    }
+    const slash = target.indexOf("/");
+    if (slash !== -1) {
+      const first = target.slice(0, slash);
+      if (first !== "projects" && projects.has(first)) {
+        const rest = target.slice(slash + 1);
+        target = rest.startsWith("wiki/")
+          ? `projects/${target}`                      // [[p/wiki/x]] -> [[projects/p/wiki/x]]
+          : `projects/${first}/wiki/${rest}`;         // [[p/article]] -> [[projects/p/wiki/article]]
+      }
+    }
+    return target === rawTarget ? m : `[[${target}${alias}]]`;
+  });
 }
 
 export interface ProjectMeta {
@@ -57,6 +78,67 @@ function walkMarkdown(dir: string): string[] {
   return out;
 }
 
+const CORE_INDEX_MD = `---
+kind: kb-core
+version: 1
+---
+
+# Core Memory
+
+_Durable, always-loaded facts about the user. Maintained via \`/kb-core\`._
+`;
+
+const NEW_CLAUDE_MD = `# Knowledge Base
+
+An LLM-maintained personal knowledge base. The LLM writes and maintains wiki content.
+
+## Layout
+projects/<name>/
+  raw/        — source-of-truth originals (notes, documents, videos, links, images, _archive)
+  planning/   — plans, specs, todos
+  assets/     — datasets, designs, large artifacts
+  wiki/       — synthesized articles + _index.md
+core/_index.md — always-loaded durable facts about the user
+_index.md      — root registry (frontmatter \`projects:\`) + cross-project connections
+
+## Rules
+- Never edit raw/ — originals; archive outdated ones to raw/_archive/.
+- raw/ is the source of truth; wiki/ is derived via /kb-compile. Deferring compile never loses data.
+- Wiki articles are synthesized from multiple sources, each with a Sources section.
+- Same-project links: [[article]]. Cross-project: [[projects/<other>/wiki/<article>]].
+- The root registry frontmatter is the source of truth for which projects exist.
+`;
+
+const STANDARD_GITIGNORE = [".obsidian/workspace.json", ".obsidian/workspace-mobile.json", ".kb-active"].join("\n") + "\n";
+
+// Bring an old KB up to the new-layout scaffolding a fresh `kb-init` would create.
+function scaffoldNewLayout(kbRoot: string): void {
+  // core/_index.md — always-loaded core memory (absent in the old layout).
+  const coreIndex = join(kbRoot, "core", "_index.md");
+  if (!existsSync(coreIndex)) {
+    mkdirSync(join(kbRoot, "core"), { recursive: true });
+    writeFileSync(coreIndex, CORE_INDEX_MD);
+  }
+
+  // CLAUDE.md — refresh the stale old-layout template; leave a customized one alone.
+  const claudePath = join(kbRoot, "CLAUDE.md");
+  if (!existsSync(claudePath) || readFileSync(claudePath, "utf-8").includes("topics/")) {
+    writeFileSync(claudePath, NEW_CLAUDE_MD);
+  }
+
+  // .gitignore — repoint topics/ → projects/ and ensure .kb-active is ignored.
+  const giPath = join(kbRoot, ".gitignore");
+  if (!existsSync(giPath)) {
+    writeFileSync(giPath, STANDARD_GITIGNORE);
+  } else {
+    let gi = readFileSync(giPath, "utf-8").replace(/topics\//g, "projects/");
+    if (!gi.split("\n").some((l) => l.trim() === ".kb-active")) {
+      gi = gi.replace(/\n*$/, "") + "\n.kb-active\n";
+    }
+    writeFileSync(giPath, gi);
+  }
+}
+
 export interface MigrateResult {
   renamed: number;
   linksRewritten: number;
@@ -94,11 +176,11 @@ export function migrate(kbRoot: string): MigrateResult {
     });
   }
 
-  // 3. Rewrite wikilinks across all project markdown.
+  // 3. Rewrite wikilinks across all project markdown (full + short-form, project-aware).
   let linksRewritten = 0;
   for (const file of walkMarkdown(projectsDir)) {
     const text = readFileSync(file, "utf-8");
-    const rewritten = rewriteWikilinks(text);
+    const rewritten = rewriteWikilinks(text, topicNames);
     if (rewritten !== text) {
       writeFileSync(file, rewritten);
       linksRewritten++;
@@ -109,11 +191,14 @@ export function migrate(kbRoot: string): MigrateResult {
   const rootIndex = join(kbRoot, "_index.md");
   if (existsSync(rootIndex)) {
     const original = readFileSync(rootIndex, "utf-8");
-    const rewritten = rewriteWikilinks(original);
+    const rewritten = rewriteWikilinks(original, topicNames);
     if (rewritten !== original) linksRewritten++;
     const { body } = parseDoc(rewritten);
     writeFileSync(rootIndex, stringifyDoc({ ...buildRootRegistry(metas) }, body));
   }
+
+  // 5. Scaffold the new-layout files an old KB lacks (core/, CLAUDE.md, .gitignore).
+  scaffoldNewLayout(kbRoot);
 
   return { renamed: topicNames.length, linksRewritten, indexesUpgraded };
 }
