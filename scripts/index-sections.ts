@@ -85,6 +85,21 @@ export function moveToCompiled(body: string, paths: string[], date: string): str
   return out;
 }
 
+export function moveToArchived(body: string, paths: string[], date: string): string {
+  const pendingLines = bulletLines(getSection(body, "Raw Sources (pending)"));
+  const remaining = pendingLines.filter((l) => !paths.includes(bulletLinePath(l)));
+  const pendingContent = remaining.length ? remaining.join("\n") : NONE;
+
+  const archivedExisting = bulletLines(getSection(body, "Raw Sources (archived)"));
+  const newlyArchived = paths.map((p) => `- ${p} — archived ${date}, no durable content`);
+  const archivedAll = [...archivedExisting, ...newlyArchived];
+  const archivedContent = archivedAll.length ? archivedAll.join("\n") : NONE;
+
+  let out = replaceSection(body, "Raw Sources (pending)", pendingContent);
+  out = replaceSection(out, "Raw Sources (archived)", archivedContent);
+  return out;
+}
+
 export function listArticles(body: string): ArticleEntry[] {
   return getSection(body, "Articles")
     .split("\n")

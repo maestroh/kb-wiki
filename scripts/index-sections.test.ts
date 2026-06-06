@@ -1,10 +1,11 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, test } from "vitest";
 import {
   getSection,
   replaceSection,
   listPending,
   addPending,
   moveToCompiled,
+  moveToArchived,
   listArticles,
   upsertArticleEntries,
   setArticles,
@@ -89,6 +90,15 @@ describe("moveToCompiled", () => {
     const pending = getSection(out, "Raw Sources (pending)");
     expect(pending).toContain("- raw/documents/b.md — added 2026-06-01, not yet compiled");
   });
+});
+
+test("moveToArchived moves a pending path into the archived section", () => {
+  let body = "## Articles\n\n_No articles yet._\n\n## Raw Sources (pending)\n\n_None._\n\n## Raw Sources (compiled)\n\n_None._\n\n## Raw Sources (archived)\n\n_None._";
+  body = addPending(body, "raw/notes/a.md", "2026-06-05");
+  body = moveToArchived(body, ["raw/notes/a.md"], "2026-06-05");
+  expect(listPending(body)).toEqual([]);
+  expect(getSection(body, "Raw Sources (archived)")).toContain("raw/notes/a.md");
+  expect(getSection(body, "Raw Sources (archived)")).toContain("no durable content");
 });
 
 describe("articles", () => {
