@@ -14,14 +14,11 @@ import {
   mkdirSync,
   existsSync,
   rmSync,
-  readFileSync,
 } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { maybeCompile } from "./compile.js";
 import { buildPlan } from "./kb.js";
-import { listPending } from "kb-wiki-scripts/index-sections.js";
-import { parseDoc } from "kb-wiki-scripts/contract.js";
 import type { LLMClient, LLMRequest, LLMResponse } from "../types.js";
 
 // ---------------------------------------------------------------------------
@@ -48,34 +45,6 @@ function makeRootIndex(
     "---",
     "",
     "# Knowledge Base",
-  ].join("\n");
-}
-
-function makeProjectIndex(name: string): string {
-  return [
-    "---",
-    `kind: kb-project`,
-    `name: ${name}`,
-    `description: ${name} project`,
-    "keywords: []",
-    "created: 2026-06-01",
-    "---",
-    "",
-    "## Articles",
-    "",
-    "_No articles yet._",
-    "",
-    "## Raw Sources (pending)",
-    "",
-    "_None._",
-    "",
-    "## Raw Sources (compiled)",
-    "",
-    "_None._",
-    "",
-    "## Raw Sources (archived)",
-    "",
-    "_None._",
   ].join("\n");
 }
 
@@ -273,5 +242,66 @@ describe("maybeCompile — best-effort: llm error does not propagate", () => {
     // Pending is still present (commit never ran)
     const plan = buildPlan(kb, project);
     expect(plan.pendingSources.length).toBe(1);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Test D — robust JSON extraction: prose preamble + fenced JSON still compiles
+// ---------------------------------------------------------------------------
+
+describe("maybeCompile — prose-wrapped fenced JSON is extracted correctly", () => {
+  let kb: string;
+  let pendingPath: string;
+  const project = "my-project";
+
+  beforeEach(() => {
+    ({ kb, pendingPath } = scaffoldKbWithPending(project));
+  });
+
+  afterEach(() => rmSync(kb, { recursive: true, force: true }));
+
+  it("writes article and drains pending when llm returns prose preamble + ```json fence", async () => {
+    const calls: LLMRequest[] = [];
+
+    const llm: LLMClient = {
+      async complete(req: LLMRequest): Promise<LLMResponse> {
+        calls.push(req);
+        const commitInput = {
+          project,
+          articles: [
+            {
+              op: "create" as const,
+              slug: "interesting-note",
+              title: "Interesting Note",
+              summary: "A note about something interesting.",
+              body: "This note covers something interesting.\n\n[[wikilinks]] are supported.",
+              sources: [pendingPath],
+            },
+          ],
+          consumedPending: [pendingPath],
+          archivedPending: [],
+        };
+        // Simulate LLM preamble prose + fenced JSON block
+        return {
+          content: `Sure! Here is the structured output:\n\`\`\`json\n${JSON.stringify(commitInput)}\n\`\`\``,
+        };
+      },
+      async *stream() {
+        throw new Error("stream not used in compile");
+      },
+    };
+
+    await maybeCompile(kb, llm, { threshold: 1 });
+
+    // Article file must exist despite preamble prose
+    const articlePath = join(kb, "projects", project, "wiki", "interesting-note.md");
+    expect(existsSync(articlePath)).toBe(true);
+
+    // Pending must be drained
+    const plan = buildPlan(kb, project);
+    expect(plan.pendingSources.length).toBe(0);
+
+    // LLM was called exactly once
+    expect(calls.length).toBe(1);
   });
 });

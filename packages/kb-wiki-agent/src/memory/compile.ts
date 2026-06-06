@@ -21,20 +21,38 @@ import { buildCompileMessages } from "./compile-prompt.js";
 import { logger } from "../llm/logger.js";
 
 // ---------------------------------------------------------------------------
-// Fence-strip helper
+// JSON extraction helper
 // ---------------------------------------------------------------------------
 
 /**
- * Defensively strip leading/trailing ```json (or ```) fences and whitespace
- * before parsing, because LLMs occasionally wrap JSON in markdown code blocks
- * even when instructed not to.
+ * Robustly extract a JSON string from LLM output that may be:
+ *   1. Clean JSON — returned as-is after trimming.
+ *   2. Fenced JSON — ```json … ``` or ``` … ``` stripped then trimmed.
+ *   3. Prose-wrapped JSON — preamble text before/after a JSON object;
+ *      falls back to extracting the substring from the first `{` to the
+ *      last `}` via /\{[\s\S]*\}/.
+ *
+ * The parse failure for truly invalid input remains caught by the
+ * surrounding best-effort try/catch — this function never throws.
  */
-function stripFences(raw: string): string {
-  return raw
-    .trim()
+function extractJson(raw: string): string {
+  // Step 1: trim surrounding whitespace.
+  let candidate = raw.trim();
+
+  // Step 2: strip markdown code fences if present.
+  candidate = candidate
     .replace(/^```(?:json)?\s*/i, "")
     .replace(/\s*```$/, "")
     .trim();
+
+  // Step 3: if the result still doesn't start with `{`, try to extract
+  // the first `{` … last `}` substring (handles prose preamble/suffix).
+  if (!candidate.startsWith("{")) {
+    const m = candidate.match(/\{[\s\S]*\}/);
+    if (m) candidate = m[0];
+  }
+
+  return candidate;
 }
 
 // ---------------------------------------------------------------------------
@@ -77,10 +95,7 @@ export async function maybeCompile(
       } catch (err) {
         // A malformed project (missing wiki/_index.md) should not abort the
         // count — skip it and continue.
-        logger.error(
-          `[compile] skipping malformed project "${entry.name}":`,
-          (err as Error).message
-        );
+        logger.error(`[compile] skipping malformed project "${entry.name}":`, err);
       }
     }
 
@@ -100,22 +115,19 @@ export async function maybeCompile(
         const messages = buildCompileMessages(plan);
         const res = await llm.complete({ messages, temperature: 0, toolChoice: "none" });
 
-        // Parse JSON response, defensively stripping fences.
-        const parsed: CommitInput = JSON.parse(stripFences(res.content));
+        // Parse JSON response, robustly handling fences and prose preambles.
+        const parsed: CommitInput = JSON.parse(extractJson(res.content));
 
         // Commit the synthesized articles.
         commit(kbRoot, parsed);
       } catch (err) {
         // Per-project errors are swallowed so one bad project doesn't abort
         // the rest. Pending stays pending (idempotent — next call retries).
-        logger.error(
-          `[compile] error compiling project "${project}":`,
-          (err as Error).message
-        );
+        logger.error(`[compile] error compiling project "${project}":`, err);
       }
     }
   } catch (err) {
     // Top-level guard: readRoot or unexpected errors never propagate.
-    logger.error("[compile] unexpected error in maybeCompile:", (err as Error).message);
+    logger.error("[compile] unexpected error in maybeCompile:", err);
   }
 }
