@@ -44,7 +44,7 @@ export async function resolveProject(
 
   switch (result.status) {
     case "match":
-      // Deterministic — no LLM needed.
+      // Deterministic — no LLM needed. Layer 1 guarantees `project` is set when status === "match".
       return { project: result.project!.name, created: false };
 
     case "ambiguous": {
@@ -60,5 +60,12 @@ export async function resolveProject(
       // Nothing existed → whatever name comes back is new.
       return { project: name, created: true };
     }
+
+    default:
+      // Defensive: guards against Layer 1 widening the status union without this
+      // policy being updated (a silent `undefined` return would be far worse).
+      throw new Error(
+        `resolveProject: unexpected resolve status: ${(result as { status: string }).status}`
+      );
   }
 }
