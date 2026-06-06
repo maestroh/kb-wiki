@@ -3,8 +3,8 @@ import { mkdtempSync, writeFileSync, readFileSync, rmSync, mkdirSync, existsSync
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { commit, validateCommit, renderArticle, CommitInput } from "./compile-commit.js";
-import { parseDoc } from "./contract.js";
-import { listPending, listArticles, getSection } from "./index-sections.js";
+import { parseDoc, stringifyDoc } from "./contract.js";
+import { listPending, listArticles, getSection, addPending } from "./index-sections.js";
 import { readRoot, findProject } from "./registry.js";
 
 let kb: string;
@@ -133,5 +133,52 @@ describe("commit", () => {
     };
     expect(() => commit(kb, bad)).toThrow(/validation failed/);
     expect(existsSync(join(kb, "projects", "p", "wiki", "x.md"))).toBe(false);
+  });
+
+  it("drains archivedPending: pending emptied and archived section populated", () => {
+    // Fixture has raw/notes/a.md in pending. It was reviewed but produced no
+    // article (no durable content), so it goes to archivedPending only.
+    const inputWithArchived: CommitInput = {
+      project: "p",
+      articles: [],
+      consumedPending: [],
+      archivedPending: ["raw/notes/a.md"],
+    };
+    const res = commit(kb, inputWithArchived);
+    expect(res.pendingRemaining).toBe(0);
+    const { body } = parseDoc(readFileSync(join(kb, "projects", "p", "wiki", "_index.md"), "utf-8"));
+    expect(listPending(body)).toEqual([]);
+    expect(getSection(body, "Raw Sources (archived)")).toContain("raw/notes/a.md");
+  });
+
+  it("drains both consumedPending and archivedPending in one commit", () => {
+    // Seed a second pending path (raw/notes/b.md) alongside the existing a.md.
+    const wikiIndexPath = join(kb, "projects", "p", "wiki", "_index.md");
+    const { data, body: origBody } = parseDoc(readFileSync(wikiIndexPath, "utf-8"));
+    const seededBody = addPending(origBody, "raw/notes/b.md", "2026-06-01");
+    writeFileSync(wikiIndexPath, stringifyDoc(data, seededBody));
+
+    // b.md becomes an article (consumed); a.md is reviewed but archived.
+    const inputBoth: CommitInput = {
+      project: "p",
+      articles: [
+        {
+          op: "create",
+          slug: "agent-loop",
+          title: "Agent Loop",
+          summary: "the planner/executor cycle",
+          body: "The loop runs each turn.",
+          sources: ["raw/notes/b.md"],
+        },
+      ],
+      consumedPending: ["raw/notes/b.md"],
+      archivedPending: ["raw/notes/a.md"],
+    };
+    const res = commit(kb, inputBoth);
+    expect(res.pendingRemaining).toBe(0);
+    const { body } = parseDoc(readFileSync(wikiIndexPath, "utf-8"));
+    expect(listPending(body)).toEqual([]);
+    expect(getSection(body, "Raw Sources (compiled)")).toContain("raw/notes/b.md");
+    expect(getSection(body, "Raw Sources (archived)")).toContain("raw/notes/a.md");
   });
 });

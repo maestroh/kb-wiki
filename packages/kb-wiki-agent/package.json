@@ -1,26 +1,25 @@
 {
-  "name": "kb-wiki-scripts",
+  "name": "kb-wiki-agent",
   "version": "0.1.0",
   "type": "module",
+  "main": "./src/index.ts",
+  "exports": {
+    ".": "./src/index.ts"
+  },
   "scripts": {
-    "preprocess:pdf": "tsx preprocess-pdf.ts",
-    "preprocess:video": "tsx preprocess-video.ts",
-    "preprocess:url": "tsx preprocess-url.ts",
+    "build": "tsc",
     "test": "vitest run",
     "test:watch": "vitest"
   },
   "dependencies": {
     "gray-matter": "^4.0.3",
     "js-yaml": "^4.2.0",
-    "linkedom": "^0.18.0",
-    "mammoth": "^1.8.0",
-    "pdf-parse": "^1.1.1",
-    "turndown": "^7.2.0"
+    "kb-wiki-scripts": "*",
+    "openai": "^4.0.0"
   },
   "devDependencies": {
     "@types/js-yaml": "^4.0.9",
     "@types/node": "^22.0.0",
-    "@types/turndown": "^5.0.5",
     "tsx": "^4.19.0",
     "typescript": "^5.6.0",
     "vitest": "^2.1.0"

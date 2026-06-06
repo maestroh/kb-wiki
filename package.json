@@ -5,5 +5,6 @@
   "description": "Claude Code plugin for managing LLM-maintained personal knowledge bases",
   "author": "nael",
   "license": "MIT",
-  "keywords": ["knowledge-base", "wiki", "obsidian", "skills"]
+  "keywords": ["knowledge-base", "wiki", "obsidian", "skills"],
+  "workspaces": ["scripts", "packages/*"]
 }

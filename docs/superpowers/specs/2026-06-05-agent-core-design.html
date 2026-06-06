@@ -1,0 +1,593 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Agent Core — Design</title>
+<style>
+  :root {
+    --ink: #1c2430;
+    --muted: #5c6b7a;
+    --line: #dce2e9;
+    --bg: #f6f8fa;
+    --card: #ffffff;
+    --accent: #2f6fb0;
+    --accent-soft: #e8f1fa;
+    --good: #2e7d57;
+    --good-soft: #e6f4ec;
+    --warn: #9a6a16;
+    --warn-soft: #fbf0d9;
+    --reuse: #5b5f97;
+    --reuse-soft: #ecedf7;
+    --shadow: 0 1px 3px rgba(20,30,45,.07), 0 6px 18px rgba(20,30,45,.05);
+    --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    --mono: "SFMono-Regular", Consolas, Menlo, monospace;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; font-family: var(--sans); color: var(--ink); background: var(--bg); line-height: 1.6; }
+  header.page { border-bottom: 1px solid var(--line); padding: 34px 24px 26px; background: var(--card); }
+  header.page .wrap, main, footer.page .wrap { max-width: 1040px; margin: 0 auto; }
+  header.page h1 { margin: 0 0 8px; font-size: 28px; letter-spacing: -.4px; }
+  header.page .lede { margin: 0 0 16px; color: var(--muted); max-width: 78ch; }
+  main { padding: 30px 24px 72px; }
+  section { margin: 0 0 46px; scroll-margin-top: 16px; }
+  h2 { font-size: 21px; margin: 0 0 6px; letter-spacing: -.2px; }
+  h2 .kicker { color: var(--accent); font-weight: 700; }
+  h3 { font-size: 16px; margin: 22px 0 8px; }
+  p { margin: 0 0 12px; }
+  .sub { color: var(--muted); margin: 0 0 16px; max-width: 80ch; }
+
+  /* Meta badges */
+  .meta { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+  .badge { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 600;
+           padding: 4px 10px; border-radius: 999px; border: 1px solid var(--line); background: var(--bg); color: var(--muted); }
+  .badge.draft { background: var(--warn-soft); color: var(--warn); border-color: #ecd9ad; }
+  .badge.dep { background: var(--accent-soft); color: var(--accent); border-color: #c7ddf0; }
+
+  /* TOC */
+  nav.toc { background: var(--card); border: 1px solid var(--line); border-radius: 10px; box-shadow: var(--shadow);
+            padding: 14px 18px; margin: 0 0 8px; }
+  nav.toc ol { margin: 0; padding-left: 20px; columns: 2; column-gap: 32px; font-size: 14px; }
+  nav.toc a { color: var(--accent); text-decoration: none; }
+  nav.toc a:hover { text-decoration: underline; }
+
+  table { width: 100%; border-collapse: collapse; background: var(--card); border: 1px solid var(--line);
+          border-radius: 10px; overflow: hidden; box-shadow: var(--shadow); font-size: 14px; margin: 6px 0 4px; }
+  thead th { background: #eef2f6; text-align: left; padding: 11px 14px; font-size: 12px;
+             text-transform: uppercase; letter-spacing: .04em; color: var(--muted); }
+  tbody td { padding: 10px 14px; border-top: 1px solid var(--line); vertical-align: top; }
+  tbody td:first-child { font-weight: 600; }
+
+  code { font-family: var(--mono); background: var(--accent-soft); padding: 1px 6px; border-radius: 4px; font-size: .88em; }
+  pre { font-family: var(--mono); background: #0f1722; color: #d6e2f0; padding: 16px 18px; border-radius: 10px;
+        overflow-x: auto; font-size: 13px; line-height: 1.5; box-shadow: var(--shadow); margin: 8px 0; }
+  pre .c { color: #7d92a8; }   /* comment */
+  pre .k { color: #8fc7ff; }   /* keyword/label */
+  pre .s { color: #b5e3a8; }   /* string */
+
+  figure { margin: 8px 0; padding: 20px; background: var(--card); border: 1px solid var(--line);
+           border-radius: 10px; box-shadow: var(--shadow); text-align: center; }
+  figcaption { margin-top: 10px; font-size: 13px; color: var(--muted); }
+
+  .grid { display: grid; gap: 14px; }
+  .grid.cards { grid-template-columns: repeat(2, 1fr); }
+  .grid.three { grid-template-columns: repeat(3, 1fr); }
+  .card { background: var(--card); border: 1px solid var(--line); border-radius: 10px; padding: 14px 16px;
+          box-shadow: var(--shadow); }
+  .card .n { display: inline-block; font-size: 12px; font-weight: 700; color: var(--accent);
+             background: var(--accent-soft); border-radius: 6px; padding: 1px 8px; margin-bottom: 6px; }
+  .card h4 { margin: 0 0 6px; font-size: 14.5px; }
+  .card p { margin: 0; font-size: 13.5px; color: var(--muted); }
+
+  .callout { border-left: 4px solid var(--accent); background: var(--accent-soft); border-radius: 0 8px 8px 0;
+             padding: 12px 16px; margin: 14px 0; font-size: 14px; }
+  .callout.good { border-color: var(--good); background: var(--good-soft); }
+  .callout.warn { border-color: var(--warn); background: var(--warn-soft); }
+  .callout strong { display: block; margin-bottom: 2px; }
+
+  .twocol { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  .panel { background: var(--card); border: 1px solid var(--line); border-radius: 10px; box-shadow: var(--shadow); overflow: hidden; }
+  .panel .head { padding: 10px 16px; font-weight: 700; font-size: 13px; letter-spacing: .02em; }
+  .panel.reuse .head { background: var(--reuse-soft); color: var(--reuse); }
+  .panel.add .head { background: var(--good-soft); color: var(--good); }
+  .panel ul { margin: 0; padding: 12px 16px 14px 32px; font-size: 13.5px; }
+  .panel li { margin: 0 0 6px; }
+
+  .tag { display:inline-block; font-size:11px; font-weight:700; padding:1px 7px; border-radius:5px; vertical-align: middle; }
+  .tag.add { background: var(--good-soft); color: var(--good); }
+  .tag.reuse { background: var(--reuse-soft); color: var(--reuse); }
+
+  /* numbered step flow */
+  ol.flow { list-style: none; counter-reset: s; margin: 0; padding: 0; }
+  ol.flow li { counter-increment: s; position: relative; padding: 10px 0 10px 46px; border-bottom: 1px dashed var(--line); font-size: 14px; }
+  ol.flow li:last-child { border-bottom: none; }
+  ol.flow li::before { content: counter(s); position: absolute; left: 0; top: 10px; width: 28px; height: 28px;
+        background: var(--accent); color: #fff; border-radius: 50%; text-align: center; line-height: 28px; font-weight: 700; font-size: 13px; }
+
+  .btn { font: inherit; font-size: 13px; padding: 8px 14px; border: 1px solid var(--line);
+         background: var(--card); color: var(--accent); border-radius: 8px; cursor: pointer; box-shadow: var(--shadow); }
+  .btn:hover { border-color: var(--accent); }
+  footer.page { border-top: 1px solid var(--line); padding: 22px 24px; color: var(--muted); font-size: 12.5px; background: var(--card); }
+
+  @media (max-width: 760px) {
+    header.page, main { padding-left: 16px; padding-right: 16px; }
+    .grid.cards, .grid.three, .twocol { grid-template-columns: 1fr; }
+    nav.toc ol { columns: 1; }
+    table { font-size: 13px; }
+  }
+  @media print {
+    body { background: #fff; }
+    .no-print { display: none !important; }
+    figure, table, section, .card, .panel, pre { box-shadow: none; break-inside: avoid; }
+    pre { background: #f4f6f8; color: #1c2430; border: 1px solid var(--line); }
+    pre .c{color:#5c6b7a} pre .k{color:#2f6fb0} pre .s{color:#2e7d57}
+    nav.toc { break-inside: avoid; }
+  }
+</style>
+</head>
+<body>
+<header class="page">
+  <div class="wrap">
+    <h1>Agent Core — Design</h1>
+    <p class="lede">A lightweight, embeddable Node package: an agent that uses kb-wiki as memory.
+      Hand it an LLM client, a skills directory, and a kb-wiki path, then call <code>chat()</code>. It runs a
+      multi-step reasoning loop, calls skills, recalls and persists knowledge — generic enough to back a chatbot
+      or a larger agent system. <strong>Lightweight is the governing principle.</strong></p>
+    <div class="meta">
+      <span class="badge" style="background:var(--good-soft);color:var(--good);border-color:#bfe0cd">● approved</span>
+      <span class="badge">2026-06-05</span>
+      <span class="badge">package: kb-wiki-agent</span>
+      <span class="badge dep">depends on: agent-memory-redesign (2026-06-01)</span>
+    </div>
+  </div>
+</header>
+
+<main>
+
+  <nav class="toc no-print" aria-label="Contents">
+    <ol>
+      <li><a href="#why">Why we're building it</a></li>
+      <li><a href="#reuse">Reuse vs. add</a></li>
+      <li><a href="#decisions">Locked decisions</a></li>
+      <li><a href="#arch">Architecture overview</a></li>
+      <li><a href="#loop">Inner loop &amp; guards</a></li>
+      <li><a href="#memory">Memory pipeline</a></li>
+      <li><a href="#convo">Conversation &amp; state</a></li>
+      <li><a href="#api">Public API</a></li>
+      <li><a href="#archive">kb-wiki extension</a></li>
+      <li><a href="#trace">End-to-end trace</a></li>
+      <li><a href="#scope">Scope</a></li>
+      <li><a href="#open">Resolved decisions</a></li>
+    </ol>
+  </nav>
+
+  <!-- WHY -->
+  <section id="why">
+    <h2><span class="kicker">§</span> Why we're building it</h2>
+    <p class="sub">The approved memory redesign already anticipates a <em>headless agent backend</em> (its Part G) that
+      consumes the deterministic Layer&nbsp;1 scripts. That backend exists today only as a rough prototype
+      (<code>willikins</code>): a full Express app with a plan-execute pipeline. We want the clean, minimal version,
+      extracted into a reusable package.</p>
+    <div class="grid three">
+      <div class="card"><h4>Not an app</h4><p>A module a host imports — no server, no DB, no queue.</p></div>
+      <div class="card"><h4>Not plan-execute</h4><p>A simpler, more flexible loop suited to long-running, dynamic tasks.</p></div>
+      <div class="card"><h4>Memory encapsulated</h4><p>kb-wiki is fully hidden — the host never learns its internals.</p></div>
+    </div>
+    <div class="callout"><strong>This spec is the agent core only.</strong>It treats the memory contract as a fixed
+      dependency and adds exactly one small extension to it (see the kb-wiki extension section).</div>
+  </section>
+
+  <!-- REUSE VS ADD -->
+  <section id="reuse">
+    <h2><span class="kicker">§</span> Reuse vs. add</h2>
+    <p class="sub">Almost everything about memory is already decided in the approved spec. We cite it rather than redesign it.</p>
+    <div class="twocol">
+      <div class="panel reuse">
+        <div class="head">REUSED AS-IS — do not redesign</div>
+        <ul>
+          <li>Layer 1 scripts: <code>resolve</code>, <code>ingest</code>, <code>retrieve</code>, <code>compile-plan</code>, <code>compile-commit</code>, <code>core</code>, <code>sync</code></li>
+          <li>Registry-based project resolution; one repo / many projects; <strong>no manual naming</strong></li>
+          <li>Read-merge <code>wiki ∪ pending-raw</code> (never stale)</li>
+          <li>Caller-side synthesis — <strong>no LLM inside the scripts</strong></li>
+          <li>Always-loaded <code>core/</code> memory tier</li>
+          <li>The on-disk contract &amp; invariants, incl. the existing <code>Raw Sources (archived)</code> heading</li>
+        </ul>
+      </div>
+      <div class="panel add">
+        <div class="head">ADDED BY THIS SPEC</div>
+        <ul>
+          <li>The agent runtime itself — the two loops, guards, API, capture pipeline (Part G, made concrete)</li>
+          <li>One contract extension: an <code>archivedPending</code> drain path in compile</li>
+          <li>A <strong>headless resolution policy</strong> for the <code>ambiguous</code>/<code>none</code> cases the memory spec left to the backend</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <!-- DECISIONS -->
+  <section id="decisions">
+    <h2><span class="kicker">§</span> Locked decisions</h2>
+    <p class="sub">Settled through brainstorming. Each shaped a fork; the lightest viable option won throughout.</p>
+    <div class="grid cards">
+      <div class="card"><span class="n">1</span><h4>Inner loop = ReAct</h4><p>Iterative tool-calling, not plan-execute. Lightest build; best fit for dynamic, long-running tasks.</p></div>
+      <div class="card"><span class="n">2</span><h4>Deterministic guards</h4><p>Wandering is controlled by in-loop limits (no LLM), not by a supervisor.</p></div>
+      <div class="card"><span class="n">3</span><h4>Outer loop = memory only</h4><p>Persistence + compaction. It does <em>not</em> supervise the inner loop.</p></div>
+      <div class="card"><span class="n">4</span><h4>Recall is a tool</h4><p>On-demand <code>recall(query)</code>. Core facts always injected; project knowledge fetched only when asked.</p></div>
+      <div class="card"><span class="n">5</span><h4>Capture is automatic</h4><p>Deterministic structural pre-clean of each exchange → ingest. Never the model's discretion; never the whole transcript.</p></div>
+      <div class="card"><span class="n">6</span><h4>Filter at compile</h4><p>Meaning-filtering happens at compile, not capture. <code>raw</code> is generous staging; the wiki stays clean.</p></div>
+      <div class="card"><span class="n">7</span><h4>Compile is internal</h4><p>Threshold-triggered off on-disk pending count, run best-effort in the background. The host never operates it.</p></div>
+      <div class="card"><span class="n">8</span><h4>Stateless</h4><p>No conversation state between calls. The host owns history; kb-wiki on disk is the only durable state.</p></div>
+      <div class="card"><span class="n">9</span><h4>Auto project resolution</h4><p>Registry-based; host never names a project. Headless ambiguity resolved by the in-loop reasoner.</p></div>
+      <div class="card"><span class="n">10</span><h4>OpenAI-compatible LLM</h4><p>The <code>openai</code> SDK with a configurable <code>baseURL</code>. A thin <code>LLMClient</code> keeps it swappable.</p></div>
+      <div class="card"><span class="n">11</span><h4>Skills from willikins</h4><p>Discovery → load → execute (subprocess), ported wholesale.</p></div>
+      <div class="card"><span class="n">+</span><h4>One kb-wiki change</h4><p>An <code>archivedPending</code> drain so every reviewed source leaves pending.</p></div>
+    </div>
+  </section>
+
+  <!-- ARCHITECTURE -->
+  <section id="arch">
+    <h2><span class="kicker">§</span> Architecture overview</h2>
+    <p class="sub">Two loops over a fixed memory dependency. The inner loop reasons and acts; the outer loop persists.
+      All durable state lives in the git-backed kb-wiki repo.</p>
+    <figure>
+      <svg viewBox="0 0 720 470" role="img" width="100%" style="max-width:720px">
+        <title>System architecture: host calls the agent core, which runs an inner ReAct loop and an outer memory loop, both backed by kb-wiki Layer 1 scripts writing to the git-backed knowledge base; recall reads back from the store.</title>
+        <defs>
+          <marker id="arw" markerWidth="9" markerHeight="9" refX="7" refY="4.5" orient="auto"><path d="M0,0 L9,4.5 L0,9 Z" fill="#5c6b7a"/></marker>
+          <marker id="arwg" markerWidth="9" markerHeight="9" refX="7" refY="4.5" orient="auto"><path d="M0,0 L9,4.5 L0,9 Z" fill="#2e7d57"/></marker>
+        </defs>
+        <!-- host -->
+        <rect x="270" y="14" width="180" height="42" rx="9" fill="#eef2f6" stroke="#5c6b7a"/>
+        <text x="360" y="40" text-anchor="middle" font-size="14" fill="#1c2430" font-weight="600">Host app</text>
+        <line x1="360" y1="56" x2="360" y2="84" stroke="#5c6b7a" stroke-width="1.6" marker-end="url(#arw)"/>
+        <text x="372" y="74" font-size="11" fill="#5c6b7a" font-family="monospace">chat({history, message})</text>
+        <!-- agent core container -->
+        <rect x="60" y="90" width="600" height="218" rx="14" fill="#f6f8fa" stroke="#c7ddf0"/>
+        <text x="78" y="111" font-size="12" fill="#2f6fb0" font-weight="700" letter-spacing=".05em">AGENT CORE  (this package)</text>
+        <!-- inner loop -->
+        <rect x="84" y="122" width="552" height="92" rx="10" fill="#e8f1fa" stroke="#2f6fb0"/>
+        <text x="100" y="142" font-size="13" fill="#1c2430" font-weight="700">INNER LOOP — ReAct</text>
+        <text x="100" y="162" font-size="11.5" fill="#3a4757">context = system(core facts + re-anchored goal) + history</text>
+        <text x="100" y="180" font-size="11.5" fill="#3a4757">loop: LLM(tools = skills ∪ recall) → run tool calls → repeat → done</text>
+        <text x="100" y="200" font-size="11" fill="#5c6b7a" font-style="italic">guards: step/token budget · goal re-anchor · repeat-detect · error-backoff</text>
+        <!-- outer loop -->
+        <rect x="84" y="224" width="552" height="70" rx="10" fill="#e6f4ec" stroke="#2e7d57"/>
+        <text x="100" y="244" font-size="13" fill="#1c2430" font-weight="700">OUTER LOOP — memory only</text>
+        <text x="100" y="263" font-size="11.5" fill="#3a4757">pre-clean exchange → ingest (pending)</text>
+        <text x="100" y="281" font-size="11.5" fill="#3a4757">if pending&gt;threshold → background compile · (compact if one call overflows)</text>
+        <!-- to scripts -->
+        <line x1="360" y1="308" x2="360" y2="332" stroke="#5c6b7a" stroke-width="1.6" marker-end="url(#arw)"/>
+        <text x="372" y="324" font-size="11" fill="#5c6b7a">uses Layer 1</text>
+        <!-- scripts -->
+        <rect x="150" y="336" width="420" height="44" rx="9" fill="#fff" stroke="#dce2e9"/>
+        <text x="360" y="354" text-anchor="middle" font-size="12.5" fill="#1c2430" font-weight="600">kb-wiki Layer 1 scripts</text>
+        <text x="360" y="370" text-anchor="middle" font-size="10.5" fill="#5c6b7a" font-family="monospace">resolve · ingest · retrieve · compile-plan · compile-commit · core · sync</text>
+        <!-- to store -->
+        <line x1="360" y1="380" x2="360" y2="402" stroke="#5c6b7a" stroke-width="1.6" marker-end="url(#arw)"/>
+        <!-- store cylinder -->
+        <g>
+          <ellipse cx="360" cy="412" rx="130" ry="9" fill="#eef2f6" stroke="#5c6b7a"/>
+          <rect x="230" y="412" width="260" height="36" fill="#eef2f6" stroke="#5c6b7a"/>
+          <line x1="230" y1="412" x2="230" y2="448" stroke="#5c6b7a"/>
+          <line x1="490" y1="412" x2="490" y2="448" stroke="#5c6b7a"/>
+          <ellipse cx="360" cy="448" rx="130" ry="9" fill="#eef2f6" stroke="#5c6b7a"/>
+          <text x="360" y="436" text-anchor="middle" font-size="12" fill="#1c2430" font-weight="600">$KNOWLEDGE_BASE · git-backed</text>
+        </g>
+        <!-- recall read-back arrow (right side, green) -->
+        <path d="M495,430 C660,430 685,250 642,176" fill="none" stroke="#2e7d57" stroke-width="1.6" stroke-dasharray="5 4" marker-end="url(#arwg)"/>
+        <text x="648" y="330" font-size="10.5" fill="#2e7d57" transform="rotate(90 648 330)">recall reads wiki ∪ pending</text>
+      </svg>
+      <figcaption>Figure 1 — The host calls <code>chat()</code>; the agent core's two loops back onto kb-wiki Layer 1, which is the single source of durable state. <code>recall</code> reads back on demand.</figcaption>
+    </figure>
+  </section>
+
+  <!-- INNER LOOP -->
+  <section id="loop">
+    <h2><span class="kicker">§</span> Inner loop &amp; guards <span class="tag add">new</span></h2>
+    <p class="sub">A standard tool-calling loop. Each turn: assemble context, call the LLM with the tool set, execute any
+      tool calls, append results, repeat. A turn with <strong>no tool call</strong> = done. Anti-wander is entirely
+      deterministic — no supervisor, no extra LLM calls.</p>
+    <figure>
+      <svg viewBox="0 0 560 330" role="img" width="100%" style="max-width:560px">
+        <title>ReAct loop: build working context, call the LLM, branch on whether it made a tool call; if yes execute tools and loop back to the LLM, if no the loop is done.</title>
+        <defs><marker id="a2" markerWidth="9" markerHeight="9" refX="7" refY="4.5" orient="auto"><path d="M0,0 L9,4.5 L0,9 Z" fill="#5c6b7a"/></marker></defs>
+        <rect x="160" y="14" width="240" height="46" rx="9" fill="#fff" stroke="#dce2e9"/>
+        <text x="280" y="33" text-anchor="middle" font-size="12.5" fill="#1c2430" font-weight="600">Build working context</text>
+        <text x="280" y="49" text-anchor="middle" font-size="10.5" fill="#5c6b7a">core facts + re-anchored goal + history</text>
+        <line x1="280" y1="60" x2="280" y2="84" stroke="#5c6b7a" stroke-width="1.6" marker-end="url(#a2)"/>
+        <rect x="160" y="86" width="240" height="46" rx="9" fill="#e8f1fa" stroke="#2f6fb0"/>
+        <text x="280" y="105" text-anchor="middle" font-size="12.5" fill="#1c2430" font-weight="600">LLM call</text>
+        <text x="280" y="121" text-anchor="middle" font-size="10.5" fill="#5c6b7a">tools = skills ∪ recall</text>
+        <line x1="280" y1="132" x2="280" y2="150" stroke="#5c6b7a" stroke-width="1.6" marker-end="url(#a2)"/>
+        <!-- diamond -->
+        <polygon points="280,150 352,188 280,226 208,188" fill="#fbf0d9" stroke="#9a6a16"/>
+        <text x="280" y="192" text-anchor="middle" font-size="12" fill="#1c2430" font-weight="600">tool call?</text>
+        <!-- no -> done -->
+        <line x1="280" y1="226" x2="280" y2="256" stroke="#5c6b7a" stroke-width="1.6" marker-end="url(#a2)"/>
+        <text x="292" y="246" font-size="11" fill="#5c6b7a">no</text>
+        <rect x="190" y="258" width="180" height="44" rx="9" fill="#e6f4ec" stroke="#2e7d57"/>
+        <text x="280" y="285" text-anchor="middle" font-size="12.5" fill="#1c2430" font-weight="600">Final answer · done</text>
+        <!-- yes -> execute -->
+        <line x1="352" y1="188" x2="430" y2="188" stroke="#5c6b7a" stroke-width="1.6" marker-end="url(#a2)"/>
+        <text x="360" y="180" font-size="11" fill="#5c6b7a">yes</text>
+        <rect x="432" y="165" width="118" height="46" rx="9" fill="#fff" stroke="#dce2e9"/>
+        <text x="491" y="184" text-anchor="middle" font-size="12" fill="#1c2430" font-weight="600">Execute</text>
+        <text x="491" y="200" text-anchor="middle" font-size="10.5" fill="#5c6b7a">append results</text>
+        <!-- loop back to LLM -->
+        <path d="M491,165 C491,100 470,109 402,109" fill="none" stroke="#5c6b7a" stroke-width="1.6" stroke-dasharray="5 4" marker-end="url(#a2)"/>
+        <text x="455" y="128" font-size="10.5" fill="#5c6b7a">loop</text>
+      </svg>
+      <figcaption>Figure 2 — The ReAct cycle. Tool calls feed back in; a text-only turn exits.</figcaption>
+    </figure>
+    <table>
+      <thead><tr><th>Guard</th><th>Mechanism</th></tr></thead>
+      <tbody>
+        <tr><td>Step / token budget</td><td>Hard cap (default 15 steps). At the cap, inject "out of budget — give your best final answer" and force a text-only turn. Nothing runs unbounded.</td></tr>
+        <tr><td>Goal re-anchoring</td><td>The original objective is pinned at the top of the system prompt every turn, so it can't drift as history grows.</td></tr>
+        <tr><td>Explicit termination</td><td>Native: a turn with no tool call ends the loop. Optional <code>finish(summary)</code> tool makes completion deliberate.</td></tr>
+        <tr><td>Repeat detection</td><td>Hash each tool call (name + args). On a duplicate, inject "you already ran this; result was X — do something different or finish."</td></tr>
+        <tr><td>Error backoff</td><td>After K failures of the same tool, stop retrying it and tell the model to route around it.</td></tr>
+      </tbody>
+    </table>
+  </section>
+
+  <!-- MEMORY -->
+  <section id="memory">
+    <h2><span class="kicker">§</span> Memory pipeline <span class="tag reuse">reuses contract</span></h2>
+    <p class="sub">Three jobs, deliberately separated: <strong>capture</strong> is reliable but dumb (deterministic, no LLM);
+      <strong>compile</strong> is the smart filter (the one LLM step); <strong>recall</strong> reads the clean wiki, merged with
+      still-pending raw so it's never stale.</p>
+    <figure>
+      <svg viewBox="0 0 720 300" role="img" width="100%" style="max-width:720px">
+        <title>Memory pipeline. Write path: an exchange is pre-cleaned deterministically, ingested to pending; compile (the one LLM step, threshold-triggered) turns pending into wiki articles or archives no-durable-content sources. Read path: recall reads a merge of wiki and pending back into the loop.</title>
+        <defs><marker id="a3" markerWidth="9" markerHeight="9" refX="7" refY="4.5" orient="auto"><path d="M0,0 L9,4.5 L0,9 Z" fill="#5c6b7a"/></marker></defs>
+        <!-- WRITE row -->
+        <text x="12" y="24" font-size="11" font-weight="700" fill="#2f6fb0" letter-spacing=".05em">WRITE — capture &amp; compile</text>
+        <rect x="12" y="36" width="96" height="44" rx="8" fill="#fff" stroke="#dce2e9"/>
+        <text x="60" y="55" text-anchor="middle" font-size="11.5" fill="#1c2430" font-weight="600">Exchange</text>
+        <text x="60" y="70" text-anchor="middle" font-size="9.5" fill="#5c6b7a">internal turns</text>
+        <line x1="108" y1="58" x2="134" y2="58" stroke="#5c6b7a" stroke-width="1.5" marker-end="url(#a3)"/>
+        <rect x="136" y="36" width="110" height="44" rx="8" fill="#e8f1fa" stroke="#2f6fb0"/>
+        <text x="191" y="53" text-anchor="middle" font-size="11.5" fill="#1c2430" font-weight="600">Pre-clean</text>
+        <text x="191" y="68" text-anchor="middle" font-size="9.5" fill="#5c6b7a">deterministic · no LLM</text>
+        <line x1="246" y1="58" x2="272" y2="58" stroke="#5c6b7a" stroke-width="1.5" marker-end="url(#a3)"/>
+        <rect x="274" y="36" width="80" height="44" rx="8" fill="#fff" stroke="#dce2e9"/>
+        <text x="314" y="62" text-anchor="middle" font-size="11.5" fill="#1c2430" font-weight="600">ingest</text>
+        <line x1="354" y1="58" x2="380" y2="58" stroke="#5c6b7a" stroke-width="1.5" marker-end="url(#a3)"/>
+        <!-- pending store -->
+        <g>
+          <ellipse cx="430" cy="44" rx="48" ry="8" fill="#fbf0d9" stroke="#9a6a16"/>
+          <rect x="382" y="44" width="96" height="30" fill="#fbf0d9" stroke="#9a6a16"/>
+          <line x1="382" y1="44" x2="382" y2="74" stroke="#9a6a16"/><line x1="478" y1="44" x2="478" y2="74" stroke="#9a6a16"/>
+          <ellipse cx="430" cy="74" rx="48" ry="8" fill="#fbf0d9" stroke="#9a6a16"/>
+          <text x="430" y="63" text-anchor="middle" font-size="11.5" fill="#1c2430" font-weight="600">Pending</text>
+        </g>
+        <line x1="478" y1="58" x2="512" y2="58" stroke="#5c6b7a" stroke-width="1.5" marker-end="url(#a3)"/>
+        <rect x="514" y="34" width="194" height="48" rx="8" fill="#e6f4ec" stroke="#2e7d57"/>
+        <text x="611" y="53" text-anchor="middle" font-size="12" fill="#1c2430" font-weight="700">compile</text>
+        <text x="611" y="69" text-anchor="middle" font-size="9.5" fill="#5c6b7a">the one LLM step · threshold · background</text>
+        <!-- compile outputs -->
+        <line x1="565" y1="82" x2="565" y2="116" stroke="#2e7d57" stroke-width="1.5" marker-end="url(#a3)"/>
+        <rect x="498" y="118" width="134" height="42" rx="8" fill="#e6f4ec" stroke="#2e7d57"/>
+        <text x="565" y="135" text-anchor="middle" font-size="11.5" fill="#1c2430" font-weight="600">Wiki articles</text>
+        <text x="565" y="150" text-anchor="middle" font-size="9.5" fill="#5c6b7a">consumedPending</text>
+        <line x1="640" y1="82" x2="662" y2="116" stroke="#9a6a16" stroke-width="1.5" marker-end="url(#a3)"/>
+        <rect x="640" y="118" width="68" height="42" rx="8" fill="#fbf0d9" stroke="#9a6a16"/>
+        <text x="674" y="135" text-anchor="middle" font-size="10.5" fill="#1c2430" font-weight="600">Archived</text>
+        <text x="674" y="150" text-anchor="middle" font-size="8.5" fill="#5c6b7a">no content</text>
+        <!-- READ row -->
+        <text x="12" y="208" font-size="11" font-weight="700" fill="#2e7d57" letter-spacing=".05em">READ — recall</text>
+        <rect x="12" y="220" width="130" height="44" rx="8" fill="#fff" stroke="#dce2e9"/>
+        <text x="77" y="240" text-anchor="middle" font-size="11.5" fill="#1c2430" font-weight="600">recall(query)</text>
+        <text x="77" y="255" text-anchor="middle" font-size="9.5" fill="#5c6b7a">a tool the loop calls</text>
+        <line x1="142" y1="242" x2="190" y2="242" stroke="#5c6b7a" stroke-width="1.5" marker-end="url(#a3)"/>
+        <rect x="192" y="218" width="190" height="48" rx="8" fill="#e8f1fa" stroke="#2f6fb0"/>
+        <text x="287" y="237" text-anchor="middle" font-size="11.5" fill="#1c2430" font-weight="600">read-merge</text>
+        <text x="287" y="252" text-anchor="middle" font-size="10" fill="#5c6b7a">Wiki ∪ Pending  (never stale)</text>
+        <line x1="382" y1="242" x2="430" y2="242" stroke="#5c6b7a" stroke-width="1.5" marker-end="url(#a3)"/>
+        <rect x="432" y="218" width="120" height="48" rx="8" fill="#e8f1fa" stroke="#2f6fb0"/>
+        <text x="492" y="246" text-anchor="middle" font-size="11.5" fill="#1c2430" font-weight="600">back to loop</text>
+        <!-- dashed links showing stores feed read-merge -->
+        <path d="M565,160 C565,190 300,180 287,216" fill="none" stroke="#9aa7b4" stroke-width="1.2" stroke-dasharray="3 3"/>
+        <path d="M430,82 C430,150 300,170 287,216" fill="none" stroke="#9aa7b4" stroke-width="1.2" stroke-dasharray="3 3"/>
+      </svg>
+      <figcaption>Figure 3 — Write path (top) and read path (bottom). Pending is the freshness gap-filler; the wiki is the clean read source. Dashed lines show both feeding <code>read-merge</code>.</figcaption>
+    </figure>
+
+    <h3>Capture — the deterministic pre-clean</h3>
+    <p>After the response is produced, the outer loop captures <em>this exchange</em> with a pure structural transform —
+      no LLM, no semantic judgment. It drops only categorically-plumbing content. Rule:
+      <strong>keep human-authored text + the agent's final prose; drop everything that is plumbing.</strong></p>
+    <table>
+      <thead><tr><th>Transcript element</th><th>Action</th></tr></thead>
+      <tbody>
+        <tr><td>system (scaffolding, goal re-anchoring)</td><td>drop</td></tr>
+        <tr><td>user text (minus injected recall / reminder blocks)</td><td>keep</td></tr>
+        <tr><td>assistant final prose</td><td>keep</td></tr>
+        <tr><td>assistant internal reasoning</td><td>drop</td></tr>
+        <tr><td>assistant tool_call (name + args)</td><td>drop (optional 1-line trace)</td></tr>
+        <tr><td>tool_result dumps (file / command output, retrieve JSON)</td><td>drop — <em>the volume sink</em></td></tr>
+        <tr><td>retries / errors / duplicates</td><td>drop</td></tr>
+      </tbody>
+    </table>
+    <p class="sub" style="margin-top:10px">Pleasantries are <em>not</em> stripped here (that's semantic) — compile handles those.
+      Division of labour: deterministic pre-clean removes <strong>structural</strong> noise (the bulk, by volume); compile removes <strong>semantic</strong> noise.</p>
+
+    <h3>Project resolution — the headless policy <span class="tag add">new</span></h3>
+    <p><code>resolve.ts</code> runs on the cleaned exchange's signals (deterministic). The host never names a project.</p>
+    <div class="twocol">
+      <div class="card"><h4>Strong match</h4><p>Ingest to that project. Zero cost, fully deterministic.</p></div>
+      <div class="card"><h4>Ambiguous / none</h4><p>The <strong>in-loop reasoner adjudicates</strong> — picks the best candidate or proposes a new project from content. This rides on reasoning the turn <em>already</em> did, so it's not an extra hot-path LLM call; deterministic <code>ingest.ts</code> then writes to the chosen project.</p></div>
+    </div>
+
+    <h3>Compile — internal &amp; self-managed</h3>
+    <div class="callout good"><strong>The disk is the state.</strong>The memory subsystem decides when to compile by reading
+      pending-count from disk — compatible with statelessness. Over threshold → compile runs best-effort in the background
+      after the response returns. Safe to defer/interrupt because <code>compile-commit</code> is idempotent and pending stays
+      pending until consumed. The host never sees any of this.</div>
+  </section>
+
+  <!-- CONVERSATION -->
+  <section id="convo">
+    <h2><span class="kicker">§</span> Conversation &amp; state</h2>
+    <p class="sub">There isn't one "conversation" — there are three layers. We own two of them; the host owns the middle one.
+      This is what "stateless" actually buys.</p>
+    <figure>
+      <svg viewBox="0 0 680 230" role="img" width="100%" style="max-width:680px">
+        <title>Three state layers: working context (transient, owned by the agent), session log (the host's), and long-term memory in kb-wiki (owned by the agent). Recall only crosses from long-term memory into the loop.</title>
+        <rect x="40" y="18" width="600" height="56" rx="10" fill="#e8f1fa" stroke="#2f6fb0"/>
+        <text x="56" y="40" font-size="13" font-weight="700" fill="#1c2430">Working context</text>
+        <text x="56" y="58" font-size="11" fill="#5c6b7a">transient · rebuilt every turn · system + history + loop scratch</text>
+        <text x="624" y="50" text-anchor="end" font-size="10.5" fill="#2f6fb0" font-weight="700">agent · transient</text>
+        <rect x="40" y="86" width="600" height="56" rx="10" fill="#eef2f6" stroke="#5c6b7a"/>
+        <text x="56" y="108" font-size="13" font-weight="700" fill="#1c2430">Session log</text>
+        <text x="56" y="126" font-size="11" fill="#5c6b7a">"what did we just say" · passed in, appended after each call</text>
+        <text x="624" y="118" text-anchor="end" font-size="10.5" fill="#5c6b7a" font-weight="700">HOST owns</text>
+        <rect x="40" y="154" width="600" height="56" rx="10" fill="#e6f4ec" stroke="#2e7d57"/>
+        <text x="56" y="176" font-size="13" font-weight="700" fill="#1c2430">Long-term memory · kb-wiki</text>
+        <text x="56" y="194" font-size="11" fill="#5c6b7a">"what do I know across sessions" · durable · git-backed</text>
+        <text x="624" y="186" text-anchor="end" font-size="10.5" fill="#2e7d57" font-weight="700">agent · durable</text>
+      </svg>
+      <figcaption>Figure 4 — <code>recall</code> is the only thing that crosses the session boundary (layer 3 → layer 1). Within a session the agent leans on the host's log.</figcaption>
+    </figure>
+    <div class="grid three">
+      <div class="card"><h4>Stateless</h4><p>No conversation state between calls. The host passes <code>history</code> in and appends the returned <code>messages</code>.</p></div>
+      <div class="card"><h4>Granularity</h4><p>One <em>exchange</em> (user msg → response) may span many <em>internal turns</em>. Capture keeps only the substance.</p></div>
+      <div class="card"><h4>Compaction</h4><p>Only matters if a single long <code>chat()</code> overflows the window. Persistent-log compaction is the host's concern.</p></div>
+    </div>
+  </section>
+
+  <!-- API -->
+  <section id="api">
+    <h2><span class="kicker">§</span> Public API <span class="tag add">new</span></h2>
+    <p class="sub">Stateless, generator-first. The generator is the core; <code>run()</code> is a thin collector. Everything memory
+      is internal — the lone exception is <code>sync()</code> (deliberate, network + credentials, host-paced).</p>
+<pre><span class="c">// 1. Construction — inject the three dependencies; sane defaults for the rest</span>
+<span class="k">const</span> agent = createAgent({
+  llm,                                    <span class="c">// LLMClient; default = OpenAI-compatible</span>
+  skills: { paths: [<span class="s">'./skills'</span>] },        <span class="c">// willikins-style SKILL.md dirs</span>
+  memory: { kbPath: process.env.KNOWLEDGE_BASE, gitToken },
+  systemPrompt,                           <span class="c">// persona / standing instructions</span>
+  guards:  { maxSteps: 15, maxTokens },   <span class="c">// deterministic anti-wander limits</span>
+  compile: { threshold: 10, model },      <span class="c">// internal trigger + optional cheaper model</span>
+});
+
+<span class="c">// 2. Core — streaming async generator (stateless: history in, events out)</span>
+<span class="k">for await</span> (const ev of agent.chat({ history, message })) {
+  <span class="c">// ev: { type:'token', text }</span>
+  <span class="c">//   | { type:'tool_call',   name, args }   // a skill or recall</span>
+  <span class="c">//   | { type:'tool_result', name, ok }</span>
+  <span class="c">//   | { type:'done', response, messages }  // final text + messages to append</span>
+}
+
+<span class="c">// 3. Convenience — non-streaming (drains the generator)</span>
+<span class="k">const</span> { response, messages } = <span class="k">await</span> agent.run({ history, message });
+
+<span class="c">// 4. The one deliberate, host-triggered memory op</span>
+<span class="k">await</span> agent.sync();</pre>
+    <ul style="font-size:14px;color:var(--muted)">
+      <li><code>history</code> is host-owned and read-only to the agent.</li>
+      <li>Returned <code>messages</code> = user message + final assistant message <strong>only</strong> — not the internal tool plumbing.</li>
+      <li><code>recall</code> / <code>ingest</code> / <code>compile</code> are <strong>not</strong> public — <code>recall</code> is an internal tool; the rest are private.</li>
+    </ul>
+    <h3>LLM client</h3>
+    <p>A thin <code>LLMClient</code> is the seam; the shipped default is OpenAI-compatible, lifted from willikins'
+      <code>llm.component.ts</code>. OpenAI message shape is the internal format (no translation layer); tools are passed as
+      OpenAI function defs; <code>baseURL</code> points at OpenAI, DeepInfra, Together, a local server, etc. The same client
+      powers compile synthesis, with an optional cheaper <code>compile.model</code> override.</p>
+  </section>
+
+  <!-- ARCHIVE EXTENSION -->
+  <section id="archive">
+    <h2><span class="kicker">§</span> kb-wiki contract extension — <code>archivedPending</code> <span class="tag add">new</span></h2>
+    <p class="sub">The <em>only</em> change to kb-wiki. Auto-capture produces more low-value pending than human ingest does. A
+      cleaned-but-contentless exchange yields no article, so under today's contract it would never be in
+      <code>consumedPending</code>, never leave pending, and be re-read on every compile (silting). Fix: a second drain so
+      <strong>every reviewed source leaves pending</strong>.</p>
+    <table>
+      <thead><tr><th>File</th><th>Change</th></tr></thead>
+      <tbody>
+        <tr><td>index-sections.ts</td><td>Add <code>moveToArchived(body, paths, date)</code> — a mirror of <code>moveToCompiled</code> targeting the existing <code>## Raw Sources (archived)</code> heading. Raw file stays in place (immutable); only the index entry moves, which suffices since <code>compile-plan</code> reads only the pending section.</td></tr>
+        <tr><td>compile-commit.ts</td><td>Add optional <code>archivedPending?: string[]</code> to <code>CommitInput</code>; after <code>moveToCompiled</code>, call <code>moveToArchived</code> for it.</td></tr>
+        <tr><td>compile prompt</td><td>Rule: "account for every pending source — each goes in <code>consumedPending</code> (became an article) or <code>archivedPending</code> (reviewed, nothing durable). Pending must be empty after a full compile."</td></tr>
+      </tbody>
+    </table>
+    <div class="callout warn"><strong>Rejected fallback.</strong>Stuffing noise paths into <code>consumedPending</code> drains
+      pending with zero code change, but mislabels them "compiled" — misleading <code>kb-lint</code> and human readers. Not worth it.</div>
+  </section>
+
+  <!-- TRACE -->
+  <section id="trace">
+    <h2><span class="kicker">§</span> End-to-end trace</h2>
+    <p class="sub">One call, start to finish.</p>
+    <div class="card">
+      <ol class="flow">
+        <li><code>host: chat(history, "set up CI for payments; we deploy via Fly")</code></li>
+        <li>Inject core facts + re-anchor goal; build working context from <code>history</code>.</li>
+        <li>ReAct: <code>recall("payments deploy")</code> → [wiki ∪ pending] → run skill(s) → answer.</li>
+        <li>Pre-clean this exchange (drop tool dumps / plumbing) → resolve project → <code>ingest</code> (pending).</li>
+        <li>pending-count(disk) &gt; threshold? → background <code>compile</code> (plan → synthesize → commit).</li>
+        <li>Return <code>{ response, messages: [userMsg, assistantMsg] }</code> — host appends.</li>
+      </ol>
+    </div>
+  </section>
+
+  <!-- SCOPE -->
+  <section id="scope">
+    <h2><span class="kicker">§</span> Scope</h2>
+    <div class="twocol">
+      <div class="panel add">
+        <div class="head">IN SCOPE</div>
+        <ul>
+          <li>The package — the two loops, guards, API, capture pipeline</li>
+          <li>The <code>archivedPending</code> contract extension</li>
+          <li>Porting willikins' skills + LLM layer</li>
+          <li>The headless resolution policy</li>
+          <li>Tests</li>
+        </ul>
+      </div>
+      <div class="panel reuse">
+        <div class="head">OUT OF SCOPE / DEFERRED (YAGNI)</div>
+        <ul>
+          <li>Supervisor / progress-critic outer loop (a hook point may remain, but none built)</li>
+          <li>Plan-execute / replan; subagents; multi-agent orchestration</li>
+          <li>Capture-time semantic skip of trivial exchanges</li>
+          <li>Multi-writer concurrency on one KB</li>
+          <li>Cross-call resumable long-running tasks (host re-feeds history)</li>
+          <li>Runnable <code>code/</code> projects</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <!-- RESOLVED DECISIONS -->
+  <section id="open">
+    <h2><span class="kicker">§</span> Resolved decisions</h2>
+    <p class="sub">The three items left open at review are now settled — the spec is ready for implementation planning.</p>
+    <div class="grid three">
+      <div class="card" style="border-left:4px solid var(--good)">
+        <span class="n" style="color:var(--good);background:var(--good-soft)">1 ✓</span>
+        <h4>Integration mechanism</h4>
+        <p><strong>Library import.</strong> The agent imports kb-wiki Layer 1 functions directly — type-safe, no per-op subprocess spawn. Lightest at runtime.</p>
+      </div>
+      <div class="card" style="border-left:4px solid var(--good)">
+        <span class="n" style="color:var(--good);background:var(--good-soft)">2 ✓</span>
+        <h4>Package name</h4>
+        <p><strong><code>kb-wiki-agent</code>.</strong> Developed as a workspace package inside this repo (it also edits <code>scripts/</code> for the <code>archivedPending</code> extension).</p>
+      </div>
+      <div class="card" style="border-left:4px solid var(--good)">
+        <span class="n" style="color:var(--good);background:var(--good-soft)">3 ✓</span>
+        <h4>Multi-instance concurrency</h4>
+        <p><strong>Deferred — acceptable.</strong> Single-writer is fine for now; advisory locking is a later add only if a multi-instance deployment needs it.</p>
+      </div>
+    </div>
+  </section>
+
+</main>
+
+<footer class="page">
+  <div class="wrap">kb-wiki-agent design · approved 2026-06-05 · delta on agent-memory-redesign (2026-06-01) · self-contained HTML — open in any browser.</div>
+</footer>
+
+</body>
+</html>
