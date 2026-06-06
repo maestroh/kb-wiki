@@ -134,4 +134,29 @@ describe("commit", () => {
     expect(() => commit(kb, bad)).toThrow(/validation failed/);
     expect(existsSync(join(kb, "projects", "p", "wiki", "x.md"))).toBe(false);
   });
+
+  it("drains archivedPending: pending emptied and archived section populated", () => {
+    // Fixture already has raw/notes/a.md in pending; commit with no articles,
+    // passing a.md as archivedPending (reviewed but no durable content).
+    const inputWithArchived: CommitInput = {
+      project: "p",
+      articles: [
+        {
+          op: "create",
+          slug: "agent-loop",
+          title: "Agent Loop",
+          summary: "the planner/executor cycle",
+          body: "The loop runs each turn.",
+          sources: ["raw/notes/a.md"],
+        },
+      ],
+      consumedPending: [],
+      archivedPending: ["raw/notes/a.md"],
+    };
+    const res = commit(kb, inputWithArchived);
+    expect(res.pendingRemaining).toBe(0);
+    const { body } = parseDoc(readFileSync(join(kb, "projects", "p", "wiki", "_index.md"), "utf-8"));
+    expect(listPending(body)).toEqual([]);
+    expect(getSection(body, "Raw Sources (archived)")).toContain("raw/notes/a.md");
+  });
 });

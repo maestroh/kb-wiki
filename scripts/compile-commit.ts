@@ -13,6 +13,7 @@ import {
   upsertArticleEntries,
   setArticles,
   moveToCompiled,
+  moveToArchived,
 } from "./index-sections.js";
 import { readRoot, writeRoot, setArticleCount } from "./registry.js";
 
@@ -29,6 +30,7 @@ export interface CommitInput {
   project: string;
   articles: ArticleOp[];
   consumedPending: string[];
+  archivedPending?: string[];   // reviewed, no durable content
 }
 
 export interface CommitResult {
@@ -83,6 +85,9 @@ export function commit(kbRoot: string, input: CommitInput): CommitResult {
   );
   let body = setArticles(idx.body, mergedArticles);
   body = moveToCompiled(body, input.consumedPending, today());
+  if (input.archivedPending?.length) {
+    body = moveToArchived(body, input.archivedPending, today());
+  }
   writeFileSync(wikiIndexPath, stringifyDoc(idx.data, body));
 
   // 3. Update root registry article count.
