@@ -22,7 +22,7 @@ import { maybeCompile as maybeCompileFn } from "./compile.js";
 import { coreFacts as coreFactsFn }     from "./core.js";
 import { sync as syncFn }               from "./kb.js";
 
-import type { Message, LLMClient, MemoryConfig } from "../types.js";
+import type { Message, LLMClient, MemoryConfig, CompileConfig } from "../types.js";
 import type { Adjudicate }              from "./resolve-project.js";
 import type { SyncResult }              from "./kb.js";
 
@@ -78,9 +78,13 @@ export interface Memory {
  *                          git repo dir — sync operates on it directly).
  * @param config.gitToken   Optional GitHub/HTTPS token for sync().
  * @param config.threshold  Pending-count threshold for maybeCompile (default 10).
+ * @param config.model      Compile-model override — currently ignored here
+ *                          (LLMClient has no per-request model; P7.1 may inject
+ *                          a compile-specific client). Accepted for type
+ *                          alignment with AgentConfig.compile (CompileConfig).
  */
 export function createMemory(
-  config: MemoryConfig & { threshold?: number }
+  config: MemoryConfig & Partial<CompileConfig>
 ): Memory {
   const { kbPath, gitToken } = config;
   const threshold = config.threshold ?? 10;
