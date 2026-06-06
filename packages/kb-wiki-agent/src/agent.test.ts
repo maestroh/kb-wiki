@@ -168,6 +168,7 @@ describe("createAgent — chat() generator", () => {
 
   it("history is threaded into the messages sent to the LLM", async () => {
     const capturedMessages: Message[][] = [];
+    const message = "follow-up";
     const llm: LLMClient = {
       async *stream(req: LLMRequest): AsyncGenerator<LLMChunk> {
         capturedMessages.push([...req.messages]);
@@ -185,12 +186,14 @@ describe("createAgent — chat() generator", () => {
       { role: "assistant", content: "previous answer" },
     ];
 
-    for await (const _ of agent.chat({ history, message: "follow-up" })) { /* drain */ }
+    for await (const _ of agent.chat({ history, message })) { /* drain */ }
 
     expect(capturedMessages.length).toBeGreaterThan(0);
     const msgs = capturedMessages[0];
     // system is first
     expect(msgs[0].role).toBe("system");
+    // system message content contains the anchored goal (current message)
+    expect((msgs[0] as { role: string; content: string }).content).toContain(message);
     // history follows
     expect(msgs[1].role).toBe("user");
     expect((msgs[1] as { role: string; content: string }).content).toBe("previous question");
@@ -199,5 +202,28 @@ describe("createAgent — chat() generator", () => {
     const lastMsg = msgs[msgs.length - 1];
     expect(lastMsg.role).toBe("user");
     expect((lastMsg as { role: string; content: string }).content).toBe("follow-up");
+  });
+
+  it("capture runs even when consumer breaks immediately after done event", async () => {
+    const agent = createAgent({
+      llm: makeStubLLM(),
+      memory: { kbPath: kb },
+    });
+
+    const message = "We deploy via Fly.io and use Postgres.";
+
+    // Consume the generator but BREAK as soon as we see the done event —
+    // do NOT drain further. If capture were placed after the yield, it would
+    // be silently skipped here.
+    const gen = agent.chat({ history: [], message });
+    for await (const event of gen) {
+      if (event.type === "done") break;
+    }
+
+    // Capture must have run before the done event was yielded (Fix 1).
+    const root = readRoot(kb);
+    const captured = root.projects.find((p) => p.name === STUB_PROJECT_NAME);
+    expect(captured).toBeTruthy();
+    expect(captured?.name).toBe(STUB_PROJECT_NAME);
   });
 });

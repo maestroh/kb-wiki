@@ -7,10 +7,16 @@
  * chat({ history, message }) is an async generator that:
  *   1. Initialises the system prompt (coreFacts + systemPrompt + anchorGoal).
  *   2. Runs the ReAct loop, yielding token/tool_call/tool_result events.
- *   3. Yields a final `done` event with `messages = [userMsg, assistantMsg]`.
- *   4. After yielding `done`, AWAITS memory.capture() (so the pending note is
- *      written before the generator returns) then fires memory.maybeCompile()
- *      without awaiting (best-effort background).
+ *   3. AWAITS memory.capture() then fires memory.maybeCompile() (fire-and-forget).
+ *   4. Yields a final `done` event with `messages = [userMsg, assistantMsg]`.
+ *
+ * Capture runs BEFORE yielding `done` (not after). The visible response has
+ * already streamed as `token` events during the loop, so awaiting capture here
+ * only delays the completion signal, not the answer — and it guarantees capture
+ * runs regardless of whether the consumer drains or breaks on `done`.
+ * (Deliberate deviation from the plan's "after yielding done" wording, made to
+ * fix a data-loss bug: a consumer that breaks on `done` never resumes the
+ * generator, so post-yield code is silently skipped.)
  */
 
 import { createMemory }    from "./memory/index.js";
@@ -67,12 +73,24 @@ export function createAgent(config: AgentConfig): Agent {
       return skillsPromise;
     }
 
-    skillsPromise = (async () => {
-      const svc = new SkillService({ enabled: true, paths });
-      await svc.initialize();
-      return svc as SkillProvider;
+    // Do NOT assign to skillsPromise before we know the init succeeded —
+    // a rejected promise in the cache would brick every future chat() call.
+    const attempt = (async (): Promise<SkillProvider | null> => {
+      try {
+        const svc = new SkillService({ enabled: true, paths });
+        await svc.initialize();
+        return svc as SkillProvider;
+      } catch (err) {
+        logger.warn("[agent] SkillService.initialize() failed — degrading to no-skills (will retry on next call)", { err });
+        // Reset so a later call can retry.
+        skillsPromise = null;
+        return null;
+      }
     })();
 
+    // Only cache on the happy path: once the promise settles successfully we
+    // keep it; if it resolved to null due to the caught error we already reset.
+    skillsPromise = attempt;
     return skillsPromise;
   }
 
@@ -131,14 +149,17 @@ export function createAgent(config: AgentConfig): Agent {
     }
 
     // Sanitise: lowercase, replace non-alphanumeric runs with "-", collapse
-    // dashes, strip leading/trailing dashes.
+    // dashes, strip leading/trailing dashes, cap at 63 chars (matches the
+    // skill-name cap in models.ts) to prevent ENAMETOOLONG on long LLM outputs.
     const sanitise = (s: string): string =>
       s
         .trim()
         .toLowerCase()
         .replace(/[^a-z0-9]+/g, "-")
         .replace(/-+/g, "-")
-        .replace(/^-|-$/g, "");
+        .replace(/^-|-$/g, "")
+        .slice(0, 63)
+        .replace(/-$/, "");
 
     const slug = sanitise(raw);
 
@@ -147,7 +168,7 @@ export function createAgent(config: AgentConfig): Agent {
     }
 
     // Fallback: derive from keywords or default to "general".
-    const fallback = kw.slice(0, 2).map(sanitise).filter(Boolean).join("-") || "general";
+    const fallback = kw.slice(0, 2).map(sanitise).filter(Boolean).join("-").slice(0, 63).replace(/-$/, "") || "general";
     return { name: fallback };
   };
 
@@ -194,18 +215,20 @@ export function createAgent(config: AgentConfig): Agent {
 
     const assistantMsg: Message = { role: "assistant", content: result.response };
 
-    // Yield the public "done" event with user + assistant only.
-    yield { type: "done", response: result.response, messages: [userMsg, assistantMsg] };
-
-    // After done: await capture (ensures pending note written before we return),
-    // then fire-and-forget compile.
+    // Await capture BEFORE yielding done so it runs whether or not the consumer
+    // drains the generator past the done event. (A consumer that breaks on done
+    // never resumes the generator, so post-yield code is silently skipped —
+    // see module-level comment for the full rationale.)
+    // maybeCompile is fire-and-forget: it never throws internally.
     try {
       await memory.capture(result.messages, adjudicate);
       void memory.maybeCompile(config.llm);  // best-effort; swallows errors internally
     } catch (err) {
-      // capture shouldn't throw, but be defensive — never let this break chat.
-      logger.error("[agent] memory.capture failed (continuing)", { err });
+      logger.error("[agent] capture/compile failed", { err });
     }
+
+    // Yield the public "done" event with user + assistant only.
+    yield { type: "done", response: result.response, messages: [userMsg, assistantMsg] };
   }
 
   return { chat };
