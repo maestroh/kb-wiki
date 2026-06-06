@@ -1,0 +1,644 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>kb-wiki-agent — Implementation Plan</title>
+<style>
+  :root {
+    --ink:#1c2430; --muted:#5c6b7a; --line:#dce2e9; --bg:#f6f8fa; --card:#fff;
+    --accent:#2f6fb0; --accent-soft:#e8f1fa; --good:#2e7d57; --good-soft:#e6f4ec;
+    --warn:#9a6a16; --warn-soft:#fbf0d9; --reuse:#5b5f97; --reuse-soft:#ecedf7;
+    --shadow:0 1px 3px rgba(20,30,45,.07),0 6px 18px rgba(20,30,45,.05);
+    --sans:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    --mono:"SFMono-Regular",Consolas,Menlo,monospace;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;font-family:var(--sans);color:var(--ink);background:var(--bg);line-height:1.6}
+  header.page{border-bottom:1px solid var(--line);padding:34px 24px 26px;background:var(--card)}
+  header.page .wrap,main,footer.page .wrap{max-width:1040px;margin:0 auto}
+  header.page h1{margin:0 0 8px;font-size:27px;letter-spacing:-.4px}
+  header.page p{margin:0 0 8px;color:var(--muted);max-width:80ch}
+  main{padding:28px 24px 72px}
+  section{margin:0 0 40px;scroll-margin-top:14px}
+  h2{font-size:21px;margin:0 0 8px;letter-spacing:-.2px}
+  h2 .kicker{color:var(--accent);font-weight:700}
+  h3{font-size:15px;margin:0;color:var(--muted);text-transform:uppercase;letter-spacing:.05em}
+  p{margin:0 0 12px}
+  .sub{color:var(--muted);margin:0 0 16px;max-width:82ch}
+  .meta{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-top:6px}
+  .badge{display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:600;padding:4px 10px;border-radius:999px;border:1px solid var(--line);background:var(--bg);color:var(--muted)}
+  .badge.dep{background:var(--accent-soft);color:var(--accent);border-color:#c7ddf0}
+  .badge.ok{background:var(--good-soft);color:var(--good);border-color:#bfe0cd}
+
+  .callout{border-left:4px solid var(--accent);background:var(--accent-soft);border-radius:0 8px 8px 0;padding:12px 16px;margin:14px 0;font-size:14px}
+  .callout.warn{border-color:var(--warn);background:var(--warn-soft)}
+  .callout.good{border-color:var(--good);background:var(--good-soft)}
+  .callout strong{display:block;margin-bottom:2px}
+
+  table{width:100%;border-collapse:collapse;background:var(--card);border:1px solid var(--line);border-radius:10px;overflow:hidden;box-shadow:var(--shadow);font-size:13.5px;margin:6px 0}
+  thead th{background:#eef2f6;text-align:left;padding:10px 13px;font-size:12px;text-transform:uppercase;letter-spacing:.04em;color:var(--muted)}
+  tbody td{padding:9px 13px;border-top:1px solid var(--line);vertical-align:top}
+  tbody td:first-child{font-weight:600;white-space:nowrap}
+
+  code{font-family:var(--mono);background:var(--accent-soft);padding:1px 6px;border-radius:4px;font-size:.86em}
+  pre{font-family:var(--mono);background:#0f1722;color:#d6e2f0;padding:14px 16px;border-radius:9px;overflow-x:auto;font-size:12.5px;line-height:1.5;box-shadow:var(--shadow);margin:8px 0}
+  pre .c{color:#7d92a8}.k{color:#8fc7ff}.s{color:#b5e3a8}.t{color:#e0b3ff}
+
+  nav.toc{background:var(--card);border:1px solid var(--line);border-radius:10px;box-shadow:var(--shadow);padding:14px 18px;margin-bottom:10px}
+  nav.toc ol{margin:0;padding-left:20px;columns:2;column-gap:32px;font-size:14px}
+  nav.toc a{color:var(--accent);text-decoration:none}
+  nav.toc a:hover{text-decoration:underline}
+
+  .phase{background:var(--card);border:1px solid var(--line);border-radius:12px;box-shadow:var(--shadow);overflow:hidden;margin-bottom:22px}
+  .phase>.bar{padding:12px 18px;font-weight:700;font-size:15px;display:flex;align-items:center;gap:10px;border-bottom:1px solid var(--line)}
+  .phase>.bar .pill{font-size:11px;font-weight:700;padding:2px 9px;border-radius:6px;background:var(--accent-soft);color:var(--accent)}
+  .phase>.bar .pill.port{background:var(--reuse-soft);color:var(--reuse)}
+  .phase>.bar .pill.new{background:var(--good-soft);color:var(--good)}
+  .phase>.bar .pill.ext{background:var(--warn-soft);color:var(--warn)}
+  .phase .body{padding:8px 18px 16px}
+
+  .task{padding:16px 0;border-top:1px dashed var(--line)}
+  .task:first-child{border-top:none}
+  .task h4{margin:0 0 4px;font-size:15px}
+  .task h4 .id{color:var(--accent);font-family:var(--mono);font-size:13px;margin-right:8px}
+  .files{font-size:12.5px;color:var(--muted);margin:0 0 8px}
+  .files b{color:var(--ink)}
+  ul.steps{list-style:none;margin:8px 0 0;padding:0}
+  ul.steps li{position:relative;padding:4px 0 4px 26px;font-size:13.5px}
+  ul.steps li::before{content:"";position:absolute;left:0;top:7px;width:14px;height:14px;border:1.5px solid var(--accent);border-radius:3px;background:var(--card)}
+  ul.steps li.run::before{border-color:var(--warn)}
+  ul.steps li.commit::before{border-color:var(--good)}
+
+  footer.page{border-top:1px solid var(--line);padding:22px 24px;color:var(--muted);font-size:12.5px;background:var(--card)}
+
+  @media (max-width:760px){header.page,main{padding-left:16px;padding-right:16px}nav.toc ol{columns:1}}
+  @media print{
+    body{background:#fff}.no-print{display:none!important}
+    .phase,table,pre,.callout{box-shadow:none;break-inside:avoid}
+    pre{background:#f4f6f8;color:#1c2430;border:1px solid var(--line)}
+    pre .c{color:#5c6b7a}.k{color:#2f6fb0}.s{color:#2e7d57}.t{color:#7a3fb0}
+  }
+</style>
+</head>
+<body>
+<header class="page">
+  <div class="wrap">
+    <h1>kb-wiki-agent — Implementation Plan</h1>
+    <p><strong>For agentic workers:</strong> use <code>superpowers:subagent-driven-development</code> (recommended) or
+      <code>superpowers:executing-plans</code> to implement this task-by-task. Each task carries its own TDD checklist.</p>
+    <p><strong>Goal:</strong> a lightweight, embeddable Node package — a stateless ReAct agent that uses kb-wiki as memory,
+      runs skills, and exposes a streaming <code>chat()</code>.</p>
+    <p><strong>Architecture:</strong> inner ReAct loop (deterministic guards) + memory-only outer loop, over an
+      OpenAI-compatible LLM client and kb-wiki Layer 1 (imported as a library). Skills + LLM layer ported from
+      <code>willikins</code>; memory pipeline is new.</p>
+    <p><strong>Tech stack:</strong> TypeScript · <code>openai</code> SDK · <code>gray-matter</code> · vitest · kb-wiki <code>scripts/</code> (workspace dep).</p>
+    <div class="meta">
+      <span class="badge ok">plan</span>
+      <span class="badge">2026-06-05</span>
+      <span class="badge dep">implements: agent-core-design (2026-06-05)</span>
+    </div>
+  </div>
+</header>
+
+<main>
+
+  <nav class="toc no-print" aria-label="Contents">
+    <ol>
+      <li><a href="#conv">Conventions &amp; TDD rhythm</a></li>
+      <li><a href="#map">Phase &amp; file map</a></li>
+      <li><a href="#p0">Phase 0 — kb-wiki <code>archivedPending</code></a></li>
+      <li><a href="#p1">Phase 1 — package scaffold</a></li>
+      <li><a href="#p2">Phase 2 — core types</a></li>
+      <li><a href="#p3">Phase 3 — LLM client (port)</a></li>
+      <li><a href="#p4">Phase 4 — skills (port)</a></li>
+      <li><a href="#p5">Phase 5 — memory module</a></li>
+      <li><a href="#p6">Phase 6 — inner loop + guards</a></li>
+      <li><a href="#p7">Phase 7 — agent API</a></li>
+      <li><a href="#p8">Phase 8 — integration &amp; docs</a></li>
+      <li><a href="#review">Self-review</a></li>
+    </ol>
+  </nav>
+
+  <!-- CONVENTIONS -->
+  <section id="conv">
+    <h2><span class="kicker">§</span> Conventions &amp; TDD rhythm</h2>
+    <p class="sub">Every task follows the same five-beat loop. The checkboxes below each task encode it; tick them as you go.</p>
+    <table>
+      <thead><tr><th>Beat</th><th>What</th></tr></thead>
+      <tbody>
+        <tr><td>① test</td><td>Write the failing test first (real assertions, shown inline).</td></tr>
+        <tr><td>② red</td><td>Run it; confirm it fails for the expected reason.</td></tr>
+        <tr><td>③ green</td><td>Write the minimal implementation.</td></tr>
+        <tr><td>④ pass</td><td>Run; confirm pass.</td></tr>
+        <tr><td>⑤ commit</td><td>Commit with a conventional message.</td></tr>
+      </tbody>
+    </table>
+    <div class="callout"><strong>Test runner.</strong>The whole repo uses <strong>vitest</strong>. New package tests:
+      <code>cd packages/kb-wiki-agent &amp;&amp; npx vitest run &lt;file&gt;</code>. kb-wiki script tests (Phase 0):
+      <code>cd scripts &amp;&amp; npx vitest run &lt;file&gt;</code>. Ported willikins files use <strong>no</strong> winston — replace its
+      logger import with a 3-line local <code>logger</code> (console wrapper) noted in Phase 3/4.</div>
+    <div class="callout good"><strong>HTML plan note.</strong>This plan is HTML (per CLAUDE.md). The execution sub-skills track
+      progress against task IDs (P0.1 …); the boxes here are for human tracking. Implement strictly in phase order — later
+      phases import earlier ones.</div>
+  </section>
+
+  <!-- MAP -->
+  <section id="map">
+    <h2><span class="kicker">§</span> Phase &amp; file map</h2>
+    <p class="sub">Decomposition locked here. Each file has one responsibility; files that change together live together.</p>
+    <table>
+      <thead><tr><th>Phase</th><th>Kind</th><th>Produces</th></tr></thead>
+      <tbody>
+        <tr><td>0 · archivedPending</td><td>extend kb-wiki</td><td><code>scripts/index-sections.ts</code>, <code>scripts/compile-commit.ts</code>, <code>skills/kb-compile/SKILL.md</code></td></tr>
+        <tr><td>1 · scaffold</td><td>new</td><td><code>packages/kb-wiki-agent/</code> (package.json, tsconfig, vitest, src/index.ts) + root workspace</td></tr>
+        <tr><td>2 · types</td><td>new</td><td><code>src/types.ts</code></td></tr>
+        <tr><td>3 · LLM client</td><td>port</td><td><code>src/llm/openai-client.ts</code>, <code>src/llm/logger.ts</code></td></tr>
+        <tr><td>4 · skills</td><td>port</td><td><code>src/skills/*</code> (12 files) + fixture</td></tr>
+        <tr><td>5 · memory</td><td>new</td><td><code>src/memory/{kb,preclean,resolve-project,recall,capture,compile,core,index}.ts</code></td></tr>
+        <tr><td>6 · loop</td><td>new</td><td><code>src/loop/{guards,tools,react}.ts</code></td></tr>
+        <tr><td>7 · API</td><td>new</td><td><code>src/agent.ts</code>, <code>src/index.ts</code></td></tr>
+        <tr><td>8 · integration</td><td>new</td><td><code>src/agent.e2e.test.ts</code>, <code>README.md</code></td></tr>
+      </tbody>
+    </table>
+  </section>
+
+  <!-- PHASE 0 -->
+  <section id="p0">
+    <h2><span class="kicker">§</span> Phase 0 — kb-wiki <code>archivedPending</code> extension</h2>
+    <p class="sub">Independent, lands in the existing kb-wiki vitest harness. Gives compile a second drain so every reviewed
+      pending source leaves the pending section. Do this first — Phase 5's compile depends on it.</p>
+
+    <div class="phase">
+      <div class="bar"><span class="pill ext">EXTEND</span> P0.1 — <code>moveToArchived</code> in index-sections.ts</div>
+      <div class="body">
+        <div class="task">
+          <p class="files"><b>Modify:</b> <code>scripts/index-sections.ts</code> · <b>Test:</b> <code>scripts/index-sections.test.ts</code></p>
+          <ul class="steps">
+            <li>① Add a failing test mirroring the existing <code>moveToCompiled</code> tests:</li>
+          </ul>
+<pre><span class="k">import</span> { addPending, moveToArchived, listPending, getSection } <span class="k">from</span> <span class="s">"./index-sections"</span>;
+
+<span class="t">test</span>(<span class="s">"moveToArchived moves a pending path into the archived section"</span>, () =&gt; {
+  <span class="k">let</span> body = <span class="s">"## Articles\n\n_No articles yet._\n\n## Raw Sources (pending)\n\n_None._\n\n## Raw Sources (compiled)\n\n_None._\n\n## Raw Sources (archived)\n\n_None._"</span>;
+  body = addPending(body, <span class="s">"raw/notes/a.md"</span>, <span class="s">"2026-06-05"</span>);
+  body = moveToArchived(body, [<span class="s">"raw/notes/a.md"</span>], <span class="s">"2026-06-05"</span>);
+  <span class="t">expect</span>(listPending(body)).toEqual([]);
+  <span class="t">expect</span>(getSection(body, <span class="s">"Raw Sources (archived)"</span>)).toContain(<span class="s">"raw/notes/a.md"</span>);
+  <span class="t">expect</span>(getSection(body, <span class="s">"Raw Sources (archived)"</span>)).toContain(<span class="s">"no durable content"</span>);
+});</pre>
+          <ul class="steps">
+            <li class="run">② Run: <code>cd scripts &amp;&amp; npx vitest run index-sections.test.ts</code> → FAIL (<code>moveToArchived is not a function</code>).</li>
+            <li>③ Implement, directly after <code>moveToCompiled</code> (same shape, different heading/annotation):</li>
+          </ul>
+<pre><span class="k">export function</span> moveToArchived(body: <span class="t">string</span>, paths: <span class="t">string</span>[], date: <span class="t">string</span>): <span class="t">string</span> {
+  <span class="k">const</span> pendingLines = bulletLines(getSection(body, <span class="s">"Raw Sources (pending)"</span>));
+  <span class="k">const</span> remaining = pendingLines.filter((l) =&gt; !paths.includes(bulletLinePath(l)));
+  <span class="k">const</span> pendingContent = remaining.length ? remaining.join(<span class="s">"\n"</span>) : NONE;
+
+  <span class="k">const</span> archivedExisting = bulletLines(getSection(body, <span class="s">"Raw Sources (archived)"</span>));
+  <span class="k">const</span> newlyArchived = paths.map((p) =&gt; <span class="s">`- ${p} — archived ${date}, no durable content`</span>);
+  <span class="k">const</span> archivedAll = [...archivedExisting, ...newlyArchived];
+  <span class="k">const</span> archivedContent = archivedAll.length ? archivedAll.join(<span class="s">"\n"</span>) : NONE;
+
+  <span class="k">let</span> out = replaceSection(body, <span class="s">"Raw Sources (pending)"</span>, pendingContent);
+  out = replaceSection(out, <span class="s">"Raw Sources (archived)"</span>, archivedContent);
+  <span class="k">return</span> out;
+}</pre>
+          <ul class="steps">
+            <li class="run">④ Run again → PASS.</li>
+            <li class="commit">⑤ <code>git add scripts/index-sections.ts scripts/index-sections.test.ts &amp;&amp; git commit -m "feat(kb): add moveToArchived index helper"</code></li>
+          </ul>
+        </div>
+      </div>
+    </div>
+
+    <div class="phase">
+      <div class="bar"><span class="pill ext">EXTEND</span> P0.2 — <code>archivedPending</code> in compile-commit.ts</div>
+      <div class="body">
+        <div class="task">
+          <p class="files"><b>Modify:</b> <code>scripts/compile-commit.ts</code> · <b>Test:</b> <code>scripts/compile-commit.test.ts</code></p>
+          <ul class="steps">
+            <li>① Add a failing test: a commit with an <code>archivedPending</code> entry drains it from pending into archived and leaves <code>pendingRemaining: 0</code>. (Follow the fixture-repo setup already used in <code>compile-commit.test.ts</code>; add one pending note via <code>addPending</code>, pass it as <code>archivedPending</code>, assert <code>listPending</code> empty and the archived section contains it.)</li>
+            <li class="run">② Run: <code>cd scripts &amp;&amp; npx vitest run compile-commit.test.ts</code> → FAIL (field ignored / pending remains).</li>
+            <li>③ Implement — extend the interface and the commit step:</li>
+          </ul>
+<pre><span class="c">// 1. import moveToArchived alongside moveToCompiled</span>
+<span class="k">import</span> { ..., moveToCompiled, moveToArchived } <span class="k">from</span> <span class="s">"./index-sections.js"</span>;
+
+<span class="c">// 2. add the optional field to CommitInput</span>
+<span class="k">export interface</span> CommitInput {
+  project: <span class="t">string</span>;
+  articles: ArticleOp[];
+  consumedPending: <span class="t">string</span>[];
+  archivedPending?: <span class="t">string</span>[];   <span class="c">// NEW: reviewed, no durable content</span>
+}
+
+<span class="c">// 3. in commit(), after the moveToCompiled line:</span>
+body = moveToCompiled(body, input.consumedPending, today());
+<span class="k">if</span> (input.archivedPending?.length) {
+  body = moveToArchived(body, input.archivedPending, today());
+}</pre>
+          <ul class="steps">
+            <li class="run">④ Run → PASS. Also run the full suite <code>npx vitest run</code> to confirm no regressions (validation + existing compiled path untouched).</li>
+            <li class="commit">⑤ <code>git commit -am "feat(kb): drain reviewed-but-empty sources via archivedPending"</code></li>
+          </ul>
+        </div>
+      </div>
+    </div>
+
+    <div class="phase">
+      <div class="bar"><span class="pill ext">EXTEND</span> P0.3 — compile prompt rule</div>
+      <div class="body">
+        <div class="task">
+          <p class="files"><b>Modify:</b> <code>skills/kb-compile/SKILL.md</code> (prose — no unit test)</p>
+          <ul class="steps">
+            <li>① In the "Synthesize article operations" rules, add: <em>"Account for <strong>every</strong> pending source — each path goes in <code>consumedPending</code> (you incorporated it into an article) or <code>archivedPending</code> (you reviewed it and it held nothing durable). After a full compile, pending must be empty."</em> Add <code>archivedPending</code> to the <code>CommitInput</code> JSON example.</li>
+            <li class="commit">⑤ <code>git commit -am "docs(kb-compile): require every pending source be consumed or archived"</code></li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- PHASE 1 -->
+  <section id="p1">
+    <h2><span class="kicker">§</span> Phase 1 — package scaffold</h2>
+    <div class="phase">
+      <div class="bar"><span class="pill new">NEW</span> P1.1 — workspace package</div>
+      <div class="body">
+        <div class="task">
+          <p class="files"><b>Create:</b> <code>packages/kb-wiki-agent/{package.json,tsconfig.json,vitest.config.ts,src/index.ts,src/index.test.ts}</code> · <b>Modify:</b> root <code>package.json</code> (add <code>workspaces</code>)</p>
+          <ul class="steps">
+            <li>① Failing smoke test <code>src/index.test.ts</code>:</li>
+          </ul>
+<pre><span class="k">import</span> { version } <span class="k">from</span> <span class="s">"./index"</span>;
+<span class="t">test</span>(<span class="s">"package exposes a version"</span>, () =&gt; <span class="t">expect</span>(<span class="k">typeof</span> version).toBe(<span class="s">"string"</span>));</pre>
+          <ul class="steps">
+            <li class="run">② <code>cd packages/kb-wiki-agent &amp;&amp; npx vitest run</code> → FAIL (no module).</li>
+            <li>③ <code>package.json</code> — deps <code>openai</code>, <code>gray-matter</code>; dev <code>vitest</code>, <code>typescript</code>, <code>tsx</code>, <code>@types/node</code>; kb-wiki scripts referenced as <code>"kb-wiki-scripts": "file:../../scripts"</code> (workspace). <code>"type":"module"</code>, <code>"main":"dist/index.js"</code>, <code>"exports"</code> → <code>./src/index.ts</code> (tsx) / <code>./dist/index.js</code> (built). Add root <code>"workspaces":["scripts","packages/*"]</code>. Write <code>src/index.ts</code>: <code>export const version = "0.1.0";</code></li>
+            <li class="run">④ Run → PASS.</li>
+            <li class="commit">⑤ <code>git add -A &amp;&amp; git commit -m "chore(agent): scaffold kb-wiki-agent workspace package"</code></li>
+          </ul>
+          <div class="callout"><strong>Integration mechanism (decision #1).</strong>kb-wiki Layer 1 is imported as a <em>library</em>.
+            The scripts already <code>export</code> their functions (e.g. <code>buildPlan</code>, <code>commit</code>, <code>resolve</code>, <code>retrieve</code>'s gather, <code>core</code> add/list) with CLI guards at the bottom — import the named exports directly; the <code>import.meta</code>/argv CLI blocks are inert when imported.</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- PHASE 2 -->
+  <section id="p2">
+    <h2><span class="kicker">§</span> Phase 2 — core types</h2>
+    <div class="phase">
+      <div class="bar"><span class="pill new">NEW</span> P2.1 — <code>src/types.ts</code></div>
+      <div class="body">
+        <div class="task">
+          <p class="files"><b>Create:</b> <code>src/types.ts</code> (type-only; verified by downstream compilation)</p>
+          <ul class="steps"><li>③ Define the shared seams (OpenAI message shape is the internal format):</li></ul>
+<pre><span class="k">import type</span> { ChatCompletionMessageParam } <span class="k">from</span> <span class="s">"openai/resources/chat/completions"</span>;
+<span class="k">export type</span> Message = ChatCompletionMessageParam;
+
+<span class="k">export interface</span> ToolDefinition { name: <span class="t">string</span>; description: <span class="t">string</span>; parameters: <span class="t">Record</span>&lt;<span class="t">string</span>, <span class="t">unknown</span>&gt;; }
+<span class="k">export interface</span> ToolCall { id: <span class="t">string</span>; name: <span class="t">string</span>; arguments: <span class="t">any</span>; }
+<span class="k">export interface</span> LLMRequest { messages: Message[]; tools?: ToolDefinition[]; temperature?: <span class="t">number</span>; maxTokens?: <span class="t">number</span>; toolChoice?: <span class="s">"auto"</span>|<span class="s">"none"</span>|<span class="s">"required"</span>; }
+<span class="k">export interface</span> LLMResponse { content: <span class="t">string</span>; toolCalls?: ToolCall[]; usage?: { promptTokens: <span class="t">number</span>; completionTokens: <span class="t">number</span>; totalTokens: <span class="t">number</span> }; }
+<span class="k">export interface</span> LLMChunk { content?: <span class="t">string</span>; toolCall?: { name: <span class="t">string</span>; arguments: <span class="t">any</span> }; done?: <span class="t">boolean</span>; }
+<span class="k">export interface</span> LLMClient { complete(r: LLMRequest): <span class="t">Promise</span>&lt;LLMResponse&gt;; stream(r: LLMRequest): <span class="t">AsyncGenerator</span>&lt;LLMChunk&gt;; }
+
+<span class="k">export type</span> AgentEvent =
+  | { type: <span class="s">"token"</span>; text: <span class="t">string</span> }
+  | { type: <span class="s">"tool_call"</span>; name: <span class="t">string</span>; args: <span class="t">unknown</span> }
+  | { type: <span class="s">"tool_result"</span>; name: <span class="t">string</span>; ok: <span class="t">boolean</span> }
+  | { type: <span class="s">"done"</span>; response: <span class="t">string</span>; messages: Message[] };
+
+<span class="k">export interface</span> ChatInput { history: Message[]; message: <span class="t">string</span>; }
+<span class="k">export interface</span> MemoryConfig { kbPath: <span class="t">string</span>; gitToken?: <span class="t">string</span>; }
+<span class="k">export interface</span> GuardsConfig { maxSteps?: <span class="t">number</span>; maxTokens?: <span class="t">number</span>; }
+<span class="k">export interface</span> CompileConfig { threshold?: <span class="t">number</span>; model?: <span class="t">string</span>; }
+<span class="k">export interface</span> AgentConfig {
+  llm: LLMClient;
+  skills?: { paths: <span class="t">string</span>[] };
+  memory: MemoryConfig;
+  systemPrompt?: <span class="t">string</span>;
+  guards?: GuardsConfig;
+  compile?: CompileConfig;
+}</pre>
+          <ul class="steps">
+            <li class="run">④ <code>npx tsc --noEmit</code> → no errors.</li>
+            <li class="commit">⑤ <code>git commit -am "feat(agent): core types and LLMClient seam"</code></li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- PHASE 3 -->
+  <section id="p3">
+    <h2><span class="kicker">§</span> Phase 3 — LLM client (port)</h2>
+    <div class="phase">
+      <div class="bar"><span class="pill port">PORT</span> P3.1 — OpenAI-compatible client</div>
+      <div class="body">
+        <div class="task">
+          <p class="files"><b>Create:</b> <code>src/llm/logger.ts</code>, <code>src/llm/openai-client.ts</code> · <b>Source:</b> <code>willikins/backend/src/components/llm.component.ts</code> · <b>Test:</b> <code>src/llm/openai-client.test.ts</code></p>
+          <ul class="steps">
+            <li>③a <code>logger.ts</code> — replace winston with a 3-line shim used by all ported files:
+              <code>export const logger = { info(){}, debug(){}, error:(...a)=&gt;console.error(...a) };</code></li>
+            <li>③b Copy <code>llm.component.ts</code> → <code>openai-client.ts</code>. Rename class <code>LLMComponent</code> → <code>OpenAIClient</code> and declare <code>implements LLMClient</code>. Swap type imports to <code>../types</code>; swap the logger import to <code>./logger</code>. Keep <code>complete()</code>, <code>stream()</code>, and <code>convertToolsToOpenAIFormat()</code> verbatim. Default <code>baseURL</code> stays configurable (drop the DeepInfra hard-default → require it from config, falling back to OpenAI's default URL).</li>
+            <li>① Test (mock the <code>openai</code> module so no network): assert <code>stream()</code> yields a <code>{content}</code> chunk then a <code>{done:true}</code>, and that a tool-call delta surfaces as <code>{toolCall:{name,arguments}}</code> with parsed args.</li>
+          </ul>
+<pre><span class="k">import</span> { vi, test, expect } <span class="k">from</span> <span class="s">"vitest"</span>;
+vi.mock(<span class="s">"openai"</span>, () =&gt; ({ <span class="k">default</span>: <span class="k">class</span> {
+  chat = { completions: { create: <span class="k">async</span> () =&gt; (<span class="k">async function</span>* () {
+    yield { choices: [{ delta: { content: <span class="s">"hi"</span> }, finish_reason: <span class="k">null</span> }] };
+    yield { choices: [{ delta: {}, finish_reason: <span class="s">"stop"</span> }] };
+  })() }; }
+}}));
+<span class="t">test</span>(<span class="s">"stream yields content then done"</span>, <span class="k">async</span> () =&gt; {
+  <span class="k">const</span> { OpenAIClient } = <span class="k">await import</span>(<span class="s">"./openai-client"</span>);
+  <span class="k">const</span> c = <span class="k">new</span> OpenAIClient({ apiKey: <span class="s">"x"</span>, baseURL: <span class="s">"http://t"</span>, model: <span class="s">"m"</span> });
+  <span class="k">const</span> out = []; <span class="k">for await</span> (<span class="k">const</span> ev <span class="k">of</span> c.stream({ messages: [] })) out.push(ev);
+  <span class="t">expect</span>(out).toContainEqual({ content: <span class="s">"hi"</span> });
+  <span class="t">expect</span>(out.at(-1)).toEqual({ done: <span class="k">true</span> });
+});</pre>
+          <ul class="steps">
+            <li class="run">②/④ <code>npx vitest run src/llm/openai-client.test.ts</code> → red, then green.</li>
+            <li class="commit">⑤ <code>git commit -am "feat(agent): port OpenAI-compatible LLM client"</code></li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- PHASE 4 -->
+  <section id="p4">
+    <h2><span class="kicker">§</span> Phase 4 — skills subsystem (port)</h2>
+    <div class="phase">
+      <div class="bar"><span class="pill port">PORT</span> P4.1 — copy the 12 skills files</div>
+      <div class="body">
+        <div class="task">
+          <p class="files"><b>Create:</b> <code>src/skills/{models,parser,validator,loader,discovery,executor,prompt,SkillService,errors,execution-history,index}.ts</code> · <b>Source:</b> <code>willikins/backend/src/skills/*</code></p>
+          <ul class="steps">
+            <li>③ Copy each file verbatim. Three mechanical adaptations across all: (a) swap any winston logger import → <code>../llm/logger</code>; (b) ensure relative imports resolve within <code>src/skills/</code>; (c) the executor's tool-catalog output already emits OpenAI-shaped names — leave it. Skip <code>test-skills.ts</code> (a willikins CLI harness).</li>
+            <li>The <code>SkillService</code> facade is the public seam Phase 6 uses: <code>getAvailableSkills()</code>, <code>getAvailableSkillsPrompt()</code>, and <code>executeScript(name, script, args) → ExecutionResult</code>. Keep <code>setAdditionalEnvProvider()</code> (lets the host inject env later).</li>
+            <li class="run">④ <code>npx tsc --noEmit</code> → clean.</li>
+            <li class="commit">⑤ <code>git commit -am "feat(agent): port skills subsystem from willikins"</code></li>
+          </ul>
+        </div>
+        <div class="task">
+          <h4><span class="id">P4.2</span> discovery + execute test against a fixture</h4>
+          <p class="files"><b>Create:</b> <code>src/skills/__fixtures__/echo/SKILL.md</code>, <code>src/skills/__fixtures__/echo/scripts/run.sh</code> · <b>Test:</b> <code>src/skills/skills.test.ts</code></p>
+          <ul class="steps">
+            <li>① Fixture: a minimal <code>SKILL.md</code> (frontmatter <code>name: echo</code>, a description) + <code>scripts/run.sh</code> echoing its first arg. Test: <code>new SkillService({paths:[fixtureDir]})</code>; <code>initialize()</code>; assert <code>getAvailableSkills()</code> includes <code>echo</code>; <code>executeScript("echo","run.sh",["hello"])</code> returns <code>success:true</code> and <code>stdout</code> containing <code>hello</code>.</li>
+            <li class="run">②/④ red → green.</li>
+            <li class="commit">⑤ <code>git commit -am "test(agent): skills discovery + execution against fixture"</code></li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- PHASE 5 -->
+  <section id="p5">
+    <h2><span class="kicker">§</span> Phase 5 — memory module</h2>
+    <p class="sub">The new heart. Each file is a focused unit over kb-wiki Layer 1.</p>
+
+    <div class="phase">
+      <div class="bar"><span class="pill new">NEW</span> P5.1 — Layer 1 library wrapper</div>
+      <div class="body"><div class="task">
+        <p class="files"><b>Create:</b> <code>src/memory/kb.ts</code> · <b>Test:</b> <code>src/memory/kb.test.ts</code></p>
+        <ul class="steps">
+          <li>③ Thin typed wrappers importing the named exports from <code>kb-wiki-scripts</code> — no logic, just a stable surface so the rest of the module never reaches into script internals:</li>
+        </ul>
+<pre><span class="k">import</span> { resolve } <span class="k">from</span> <span class="s">"kb-wiki-scripts/resolve.js"</span>;
+<span class="k">import</span> { buildPlan } <span class="k">from</span> <span class="s">"kb-wiki-scripts/compile-plan.js"</span>;
+<span class="k">import</span> { commit, CommitInput } <span class="k">from</span> <span class="s">"kb-wiki-scripts/compile-commit.js"</span>;
+<span class="c">// + ingest, retrieve gather, core add/list, sync — re-export typed</span>
+<span class="k">export</span> { resolve, buildPlan, commit }; <span class="k">export type</span> { CommitInput };</pre>
+        <ul class="steps">
+          <li>① Test: against a temp KB created with kb-wiki's <code>init</code> (or a hand-built minimal layout fixture), <code>buildPlan(kb,"default")</code> returns <code>{pendingSources, existingArticles}</code>. (Reuse the temp-repo helper pattern from kb-wiki's own script tests.)</li>
+          <li class="run">②/④ red → green.</li>
+          <li class="commit">⑤ <code>git commit -am "feat(agent): kb-wiki Layer 1 library wrapper"</code></li>
+        </ul>
+      </div></div>
+    </div>
+
+    <div class="phase">
+      <div class="bar"><span class="pill new">NEW</span> P5.2 — deterministic pre-clean</div>
+      <div class="body"><div class="task">
+        <p class="files"><b>Create:</b> <code>src/memory/preclean.ts</code> · <b>Test:</b> <code>src/memory/preclean.test.ts</code></p>
+        <ul class="steps"><li>① Table-driven test, one row per element type (the Capture table in the design):</li></ul>
+<pre><span class="t">test.each</span>([
+  [{ role: <span class="s">"system"</span>, content: <span class="s">"goal"</span> },            <span class="k">false</span>],
+  [{ role: <span class="s">"user"</span>, content: <span class="s">"we deploy via Fly"</span> },   <span class="k">true</span>],
+  [{ role: <span class="s">"assistant"</span>, content: <span class="s">"Done — CI added."</span> }, <span class="k">true</span>],
+  [{ role: <span class="s">"assistant"</span>, content: <span class="s">""</span>, tool_calls: [{}] }, <span class="k">false</span>],
+  [{ role: <span class="s">"tool"</span>, content: <span class="s">"&lt;huge dump&gt;"</span> },       <span class="k">false</span>],
+])(<span class="s">"keeps only substantive prose"</span>, (msg, kept) =&gt; {
+  <span class="k">const</span> out = preclean([msg <span class="k">as</span> Message]);
+  <span class="t">expect</span>(out.includes(<span class="t">String</span>((msg <span class="k">as</span> any).content))).toBe(kept &amp;&amp; !!(msg <span class="k">as</span> any).content);
+});</pre>
+        <ul class="steps">
+          <li>③ <code>export function preclean(messages: Message[]): string</code> — keep <code>user</code> + <code>assistant</code> text only; drop <code>system</code>, any assistant message that has <code>tool_calls</code>, all <code>tool</code> messages; strip injected blocks from user text (lines fenced as recall/system-reminder); join survivors as <code>role: text</code> lines. No LLM.</li>
+          <li class="run">②/④ red → green.</li>
+          <li class="commit">⑤ <code>git commit -am "feat(agent): deterministic transcript pre-clean"</code></li>
+        </ul>
+      </div></div>
+    </div>
+
+    <div class="phase">
+      <div class="bar"><span class="pill new">NEW</span> P5.3 — headless project resolution</div>
+      <div class="body"><div class="task">
+        <p class="files"><b>Create:</b> <code>src/memory/resolve-project.ts</code> · <b>Test:</b> <code>src/memory/resolve-project.test.ts</code></p>
+        <ul class="steps">
+          <li>③ <code>resolveProject(kb, signals, adjudicate)</code>: call Layer 1 <code>resolve</code>. On <code>match</code> → return its name (no LLM). On <code>ambiguous</code>/<code>none</code> → call the injected <code>adjudicate(candidates, signals) → {name}</code> callback (the reasoner). Returns <code>{project, created?:boolean}</code>.</li>
+          <li>① Test with a stub <code>adjudicate</code>: strong-match path never calls it; ambiguous path calls it and returns its choice; none path returns a newly-proposed name.</li>
+          <li class="run">②/④ red → green.</li>
+          <li class="commit">⑤ <code>git commit -am "feat(agent): headless project resolution policy"</code></li>
+        </ul>
+      </div></div>
+    </div>
+
+    <div class="phase">
+      <div class="bar"><span class="pill new">NEW</span> P5.4 — recall (read-merge)</div>
+      <div class="body"><div class="task">
+        <p class="files"><b>Create:</b> <code>src/memory/recall.ts</code> · <b>Test:</b> <code>src/memory/recall.test.ts</code></p>
+        <ul class="steps">
+          <li>③ <code>recall(kb, query) → string</code>: resolve relevant project(s) from the registry, gather wiki articles + pending raw via Layer 1 <code>retrieve</code>, and format a single read-merged context block (wiki first, then a "recent / not-yet-compiled" pending section). Pure gather + format — the blending is just concatenation with headers.</li>
+          <li>① Test against a temp KB with one article + one pending note: assert the returned string contains both, and labels the pending one as recent.</li>
+          <li class="run">②/④ red → green.</li>
+          <li class="commit">⑤ <code>git commit -am "feat(agent): recall with wiki ∪ pending read-merge"</code></li>
+        </ul>
+      </div></div>
+    </div>
+
+    <div class="phase">
+      <div class="bar"><span class="pill new">NEW</span> P5.5 — capture</div>
+      <div class="body"><div class="task">
+        <p class="files"><b>Create:</b> <code>src/memory/capture.ts</code> · <b>Test:</b> <code>src/memory/capture.test.ts</code></p>
+        <ul class="steps">
+          <li>③ <code>capture(kb, exchange, adjudicate)</code>: <code>preclean(exchange)</code>; if the cleaned text is non-empty, <code>resolveProject(...)</code> then Layer 1 <code>ingest</code> the cleaned note into that project's pending. Returns <code>{ingested, project}</code>. No LLM beyond the adjudicate fallback.</li>
+          <li>① Test: a substantive exchange ingests a pending note into the resolved project; an all-plumbing exchange ingests nothing.</li>
+          <li class="run">②/④ red → green.</li>
+          <li class="commit">⑤ <code>git commit -am "feat(agent): capture (pre-clean → resolve → ingest)"</code></li>
+        </ul>
+      </div></div>
+    </div>
+
+    <div class="phase">
+      <div class="bar"><span class="pill new">NEW</span> P5.6 — compile (internal, threshold, background)</div>
+      <div class="body"><div class="task">
+        <p class="files"><b>Create:</b> <code>src/memory/compile.ts</code>, <code>src/memory/compile-prompt.ts</code> · <b>Test:</b> <code>src/memory/compile.test.ts</code></p>
+        <ul class="steps">
+          <li>③ <code>maybeCompile(kb, llm, {threshold})</code>: read pending-count from disk (Layer 1); if <code>&lt; threshold</code> return. Else for each project with pending: <code>buildPlan</code> → ask <code>llm.complete</code> with the compile prompt (forced JSON of article ops, <strong>requiring every source in <code>consumedPending</code> or <code>archivedPending</code></strong>) → <code>commit</code>. Wrap in try/catch; never throw into the caller (best-effort). <code>compile-prompt.ts</code> holds the synthesis instructions (port the rules from <code>kb-compile/SKILL.md</code> + the P0.3 archived rule).</li>
+          <li>① Test with a stub <code>llm</code> returning a fixed article-ops JSON and a temp KB with 1 pending note: after <code>maybeCompile</code> with <code>threshold:1</code>, an article exists and pending is drained (the stub marks the note <code>consumedPending</code>); with <code>threshold:99</code>, nothing happens.</li>
+          <li class="run">②/④ red → green.</li>
+          <li class="commit">⑤ <code>git commit -am "feat(agent): internal threshold-gated compile"</code></li>
+        </ul>
+      </div></div>
+    </div>
+
+    <div class="phase">
+      <div class="bar"><span class="pill new">NEW</span> P5.7 — core facts &amp; Memory facade</div>
+      <div class="body"><div class="task">
+        <p class="files"><b>Create:</b> <code>src/memory/core.ts</code>, <code>src/memory/index.ts</code> · <b>Test:</b> <code>src/memory/memory.test.ts</code></p>
+        <ul class="steps">
+          <li>③a <code>core.ts</code>: <code>coreFacts(kb) → string[]</code> via Layer 1 <code>core</code> list.</li>
+          <li>③b <code>index.ts</code>: <code>createMemory(config) → Memory</code> with <code>recall(q)</code>, <code>capture(exchange, adjudicate)</code>, <code>maybeCompile(llm)</code>, <code>coreFacts()</code>, <code>sync()</code> (Layer 1 <code>sync</code>, the lone host-facing op). Internally holds <code>kbPath</code>/<code>gitToken</code>.</li>
+          <li>① Test: <code>createMemory({kbPath})</code> exposes the five methods; <code>coreFacts()</code> returns seeded facts from a temp KB.</li>
+          <li class="run">②/④ red → green.</li>
+          <li class="commit">⑤ <code>git commit -am "feat(agent): Memory facade + core facts"</code></li>
+        </ul>
+      </div></div>
+    </div>
+  </section>
+
+  <!-- PHASE 6 -->
+  <section id="p6">
+    <h2><span class="kicker">§</span> Phase 6 — inner loop + guards</h2>
+
+    <div class="phase">
+      <div class="bar"><span class="pill new">NEW</span> P6.1 — deterministic guards</div>
+      <div class="body"><div class="task">
+        <p class="files"><b>Create:</b> <code>src/loop/guards.ts</code> · <b>Test:</b> <code>src/loop/guards.test.ts</code></p>
+        <ul class="steps">
+          <li>③ Pure helpers: <code>budgetExceeded(step, tokens, cfg)</code>; <code>repeatKey(name, args) → string</code> (stable hash) + a <code>RepeatTracker</code> set with <code>seen(key)</code>; <code>ErrorBackoff</code> counting failures per tool with <code>blocked(name, k=2)</code>; <code>anchorGoal(systemPrompt, goal) → string</code> (prepends the pinned objective). No LLM.</li>
+          <li>① Tests: budget trips at <code>maxSteps</code>; <code>repeatKey</code> equal for same name+args, differs otherwise; backoff blocks after K; <code>anchorGoal</code> output starts with the goal.</li>
+          <li class="run">②/④ red → green.</li>
+          <li class="commit">⑤ <code>git commit -am "feat(agent): deterministic loop guards"</code></li>
+        </ul>
+      </div></div>
+    </div>
+
+    <div class="phase">
+      <div class="bar"><span class="pill new">NEW</span> P6.2 — tool registry</div>
+      <div class="body"><div class="task">
+        <p class="files"><b>Create:</b> <code>src/loop/tools.ts</code> · <b>Test:</b> <code>src/loop/tools.test.ts</code></p>
+        <ul class="steps">
+          <li>③ <code>buildTools(skills, memory) → { defs: ToolDefinition[], dispatch(name, args) → Promise&lt;{ok, output}&gt; }</code>. Defs = skill catalog (from <code>SkillService.getAvailableSkills()</code>, mapped to <code>ToolDefinition</code>) + a built-in <code>recall</code> def (<code>{query:string}</code>). <code>dispatch</code> routes <code>recall</code> → <code>memory.recall</code>; any other name → <code>SkillService.executeScript</code>.</li>
+          <li>① Test with stub skills + memory: defs include <code>recall</code>; dispatch("recall",{query}) calls memory; dispatch of a skill name calls executeScript.</li>
+          <li class="run">②/④ red → green.</li>
+          <li class="commit">⑤ <code>git commit -am "feat(agent): tool registry (skills ∪ recall)"</code></li>
+        </ul>
+      </div></div>
+    </div>
+
+    <div class="phase">
+      <div class="bar"><span class="pill new">NEW</span> P6.3 — the ReAct loop</div>
+      <div class="body"><div class="task">
+        <p class="files"><b>Create:</b> <code>src/loop/react.ts</code> · <b>Test:</b> <code>src/loop/react.test.ts</code></p>
+        <ul class="steps">
+          <li>③ <code>async function* runLoop({llm, tools, messages, guards}): AsyncGenerator&lt;AgentEvent, {response, messages}&gt;</code>. Each turn: <code>llm.stream({messages, tools: tools.defs})</code>; yield <code>{token}</code> for content; collect tool calls. If none → emit nothing more, return <code>{response, messages}</code> (done). If tool calls → for each: repeat-detect/backoff guard, yield <code>{tool_call}</code>, <code>dispatch</code>, append a <code>tool</code> message, yield <code>{tool_result}</code>. Enforce budget; at the cap inject the "best final answer" user message and force one final no-tools turn.</li>
+          <li>① Test with a scripted stub LLM: first call returns a <code>recall</code> tool call, second returns text only. Assert events: <code>tool_call</code> → <code>tool_result</code> → <code>token</code>(s), and the returned <code>response</code> matches; assert the loop terminates (no infinite iteration). Add a test where the stub always repeats the same tool call → repeat-detection forces termination within the budget.</li>
+          <li class="run">②/④ red → green.</li>
+          <li class="commit">⑤ <code>git commit -am "feat(agent): ReAct loop with guards"</code></li>
+        </ul>
+      </div></div>
+    </div>
+  </section>
+
+  <!-- PHASE 7 -->
+  <section id="p7">
+    <h2><span class="kicker">§</span> Phase 7 — agent API</h2>
+    <div class="phase">
+      <div class="bar"><span class="pill new">NEW</span> P7.1 — createAgent + chat()</div>
+      <div class="body"><div class="task">
+        <p class="files"><b>Create:</b> <code>src/agent.ts</code> · <b>Test:</b> <code>src/agent.test.ts</code></p>
+        <ul class="steps">
+          <li>③ <code>createAgent(config) → { chat, run, sync }</code>. <code>chat({history, message})</code> is the generator: init <code>SkillService</code> (if paths) + <code>createMemory</code>; build system prompt = <code>config.systemPrompt</code> + <code>memory.coreFacts()</code> + <code>anchorGoal(_, message)</code>; messages = <code>[system, ...history, {role:"user", content:message}]</code>; <code>buildTools</code>; <code>yield*</code> the loop; on done → assemble <code>messages:[userMsg, assistantMsg]</code>, then <strong>after yielding <code>done</code></strong> run <code>memory.capture(fullInternalTranscript, adjudicate)</code> and fire <code>memory.maybeCompile(llm)</code> without awaiting (best-effort background). The <code>adjudicate</code> callback wraps <code>llm.complete</code>.</li>
+          <li>① Integration test with stub LLM + temp KB: drive <code>chat()</code>, collect events, assert a <code>done</code> with the expected response and <code>messages</code> = user + assistant only; assert a pending note was ingested (capture ran).</li>
+          <li class="run">②/④ red → green.</li>
+          <li class="commit">⑤ <code>git commit -am "feat(agent): createAgent + streaming chat()"</code></li>
+        </ul>
+      </div></div>
+    </div>
+    <div class="phase">
+      <div class="bar"><span class="pill new">NEW</span> P7.2 — run() collector, sync(), exports</div>
+      <div class="body"><div class="task">
+        <p class="files"><b>Modify:</b> <code>src/agent.ts</code>, <code>src/index.ts</code> · <b>Test:</b> <code>src/agent.test.ts</code></p>
+        <ul class="steps">
+          <li>③ <code>run(input)</code> drains <code>chat</code>, concatenating <code>token</code> events, returning the final <code>{response, messages}</code>. <code>sync()</code> delegates to <code>memory.sync()</code>. <code>src/index.ts</code> exports <code>createAgent</code>, <code>OpenAIClient</code>, and the public types.</li>
+          <li>① Test: <code>run()</code> returns the same <code>response</code> as draining <code>chat()</code>; <code>sync()</code> calls the Layer 1 sync (stub/spy).</li>
+          <li class="run">②/④ red → green.</li>
+          <li class="commit">⑤ <code>git commit -am "feat(agent): run() collector, sync(), public exports"</code></li>
+        </ul>
+      </div></div>
+    </div>
+  </section>
+
+  <!-- PHASE 8 -->
+  <section id="p8">
+    <h2><span class="kicker">§</span> Phase 8 — integration &amp; docs</h2>
+    <div class="phase">
+      <div class="bar"><span class="pill new">NEW</span> P8.1 — end-to-end</div>
+      <div class="body"><div class="task">
+        <p class="files"><b>Create:</b> <code>src/agent.e2e.test.ts</code></p>
+        <ul class="steps">
+          <li>① One test, real wiring (only the LLM stubbed): temp KB (kb-wiki <code>init</code> layout) + a fixture skill. Turn 1: stub LLM calls the fixture skill then answers → assert skill ran + response streamed + capture ingested a note. Turn 2 (threshold:1): assert background compile produced a wiki article and drained pending (poll briefly, since compile is fire-and-forget). Turn 3: <code>recall</code> returns the compiled article. This exercises capture → compile → recall end-to-end.</li>
+          <li class="run">②/④ red → green.</li>
+          <li class="commit">⑤ <code>git commit -am "test(agent): end-to-end capture→compile→recall"</code></li>
+        </ul>
+      </div></div>
+    </div>
+    <div class="phase">
+      <div class="bar"><span class="pill new">NEW</span> P8.2 — README</div>
+      <div class="body"><div class="task">
+        <p class="files"><b>Create:</b> <code>packages/kb-wiki-agent/README.md</code></p>
+        <ul class="steps">
+          <li>③ Install, the <code>createAgent</code> + <code>chat</code>/<code>run</code> example from the design's API section, the env it needs (<code>KNOWLEDGE_BASE</code>, LLM <code>apiKey</code>/<code>baseURL</code>/<code>model</code>), and a one-paragraph "memory is automatic" note. Link the design HTML.</li>
+          <li class="commit">⑤ <code>git commit -am "docs(agent): package README"</code></li>
+        </ul>
+      </div></div>
+    </div>
+  </section>
+
+  <!-- SELF REVIEW -->
+  <section id="review">
+    <h2><span class="kicker">§</span> Self-review — spec coverage</h2>
+    <table>
+      <thead><tr><th>Design element</th><th>Covered by</th></tr></thead>
+      <tbody>
+        <tr><td>ReAct inner loop + guards</td><td>P6.1–P6.3</td></tr>
+        <tr><td>Memory-only outer loop (capture + compile, no supervisor)</td><td>P5.5, P5.6, P7.1</td></tr>
+        <tr><td>Recall as a tool + core facts always injected</td><td>P5.4, P5.7, P6.2, P7.1</td></tr>
+        <tr><td>Deterministic pre-clean capture</td><td>P5.2, P5.5</td></tr>
+        <tr><td>Internal, threshold, background compile</td><td>P5.6, P7.1</td></tr>
+        <tr><td>Stateless API (history in, messages out)</td><td>P7.1, P7.2</td></tr>
+        <tr><td>Headless registry resolution</td><td>P5.3</td></tr>
+        <tr><td>OpenAI-compatible LLM (ported)</td><td>P3.1</td></tr>
+        <tr><td>Skills subsystem (ported)</td><td>P4.1–P4.2</td></tr>
+        <tr><td><code>archivedPending</code> contract extension</td><td>P0.1–P0.3</td></tr>
+        <tr><td>Library integration / package name (decisions 1–2)</td><td>P1.1, P5.1</td></tr>
+      </tbody>
+    </table>
+    <div class="callout good"><strong>Deferred per design (no task, intentional).</strong>supervisor/critic loop · plan-execute ·
+      subagents · capture-time semantic skip · multi-writer locking · cross-call resumable tasks · runnable <code>code/</code>.</div>
+  </section>
+
+</main>
+
+<footer class="page">
+  <div class="wrap">kb-wiki-agent implementation plan · 2026-06-05 · implements agent-core-design (2026-06-05) · self-contained HTML.</div>
+</footer>
+</body>
+</html>
