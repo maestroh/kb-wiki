@@ -34,10 +34,11 @@ Produce a `CommitInput` JSON object:
       "summary": "<one line>", "body": "<synthesized markdown with [[wikilinks]]>",
       "sources": ["raw/.../file.md", "..."] }
   ],
-  "consumedPending": ["raw/.../file.md", "..."]
+  "consumedPending": ["raw/.../file.md", "..."],
+  "archivedPending": []
 }
 ```
-Rules: articles are SYNTHESIZED (not copied); link generously with `[[wikilinks]]`; cross-project links use `[[projects/<other>/wiki/<article>]]`; every article lists its contributing `sources`; `consumedPending` is exactly the pending paths you incorporated.
+Rules: articles are SYNTHESIZED (not copied); link generously with `[[wikilinks]]`; cross-project links use `[[projects/<other>/wiki/<article>]]`; every article lists its contributing `sources`; `consumedPending` is exactly the pending paths you incorporated. Account for **every** pending source — each path goes in `consumedPending` (you incorporated it into an article) or `archivedPending` (you reviewed it and it held nothing durable). After a full compile, pending must be empty.
 
 ### 3. Commit
 Write the `CommitInput` JSON to a temp file and feed it on stdin — a temp file avoids shell-quoting issues, since synthesized article bodies routinely contain apostrophes and newlines that would break a quoted `echo`:
