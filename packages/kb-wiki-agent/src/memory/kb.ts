@@ -32,12 +32,18 @@ export type { RetrieveResult,
 export type { SyncResult }   from "kb-wiki-scripts/sync.js";
 export type { ResolveSignals,
               ResolveResult } from "kb-wiki-scripts/resolve.js";
+// Shapes surfaced through CompilePlan / RetrieveResult / ResolveResult that
+// downstream memory units (recall, compile) need to annotate intermediates.
+export type { ArticleEntry } from "kb-wiki-scripts/index-sections.js";
+export type { ProjectRegistryEntry } from "kb-wiki-scripts/contract.js";
 
 // ── resolve convenience wrapper ───────────────────────────────────────────────
 // Composes readRoot + matchProject so callers can resolve from a kbRoot path
 // rather than needing to read the root frontmatter themselves.
 import { readRoot }       from "kb-wiki-scripts/registry.js";
 import { matchProject }   from "kb-wiki-scripts/resolve.js";
+// Local import needed for the signature below: a re-export does not bind the
+// names into this module's scope.
 import type { ResolveSignals, ResolveResult } from "kb-wiki-scripts/resolve.js";
 
 export function resolve(kbRoot: string, signals: ResolveSignals): ResolveResult {
