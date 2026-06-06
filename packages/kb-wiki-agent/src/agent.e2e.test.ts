@@ -79,7 +79,16 @@ afterAll(() => {
 // CommitInput consuming all of them so validateCommit passes.
 // ---------------------------------------------------------------------------
 
+// Single source of truth for the Turn-1 final text, shared by the stub and
+// the assertion below so the test fails if they ever drift apart.
+const TURN1_REPLY = "Set up CI; noted you deploy via Fly.";
+
 function makeE2EStubLLM(): LLMClient {
+  // streamCallCount is SHARED across all three createAgent() instances created
+  // in this test.  The mapping (call number → turn) relies on stream() only
+  // ever being invoked from inside chat() — there are no construction-time or
+  // preflight stream calls — so the counter advances exactly once per LLM
+  // iteration across all turns in sequence.
   let streamCallCount = 0;
 
   return {
@@ -100,7 +109,7 @@ function makeE2EStubLLM(): LLMClient {
 
         // ── Turn 1, LLM iteration 2: text response ───────────────────────
         case 1:
-          yield { content: "Set up CI; noted you deploy via Fly." };
+          yield { content: TURN1_REPLY };
           yield { done: true };
           break;
 
@@ -130,11 +139,9 @@ function makeE2EStubLLM(): LLMClient {
           yield { done: true };
           break;
 
-        // ── Fallback (safety net) ─────────────────────────────────────────
+        // ── Unexpected call — fail loudly so regressions are visible ──────
         default:
-          yield { content: "fallback response" };
-          yield { done: true };
-          break;
+          throw new Error(`E2E stub: unexpected stream call #${call}`);
       }
     },
 
@@ -278,12 +285,13 @@ describe("agent e2e — capture → compile → recall", () => {
         ).toBeTruthy();
         expect(echoResult!.ok, "echo skill should succeed").toBe(true);
 
-        // Assert: done event with text response.
+        // Assert: done event with the exact Turn-1 text (TURN1_REPLY is the
+        // single source of truth shared by the stub and this assertion).
         const doneEvents = events.filter(
           (e) => e.type === "done"
         ) as Extract<AgentEvent, { type: "done" }>[];
         expect(doneEvents).toHaveLength(1);
-        expect(doneEvents[0].response).toContain("Fly");
+        expect(doneEvents[0].response).toBe(TURN1_REPLY);
 
         // Assert: capture ran and created a pending note.
         // (With threshold:99, compile did NOT fire — pending must still be there.)
@@ -304,6 +312,8 @@ describe("agent e2e — capture → compile → recall", () => {
         });
 
         // Drive Turn 2. After this returns, maybeCompile is in flight.
+        // NOTE: maybeCompile is NOT awaited inside chat(), so compile runs
+        // concurrently; the pollUntil() below waits for it to settle on disk.
         await collectEvents(
           agent.chat({
             history: [],
