@@ -15,9 +15,10 @@
  * user to clarify or proceed without KB context.
  *
  * TOKENIZATION — splits the free-text query on any run of non-word characters
- * (\W+), lowercases each token, and drops empty strings. Deterministic and
- * locale-independent. Short common words are left in; matchProject's
- * substring scoring naturally de-weights them.
+ * (\W+), lowercases each token, and drops tokens shorter than 3 characters.
+ * The length floor keeps stopwords ("the", "a", "of", "are") out of the
+ * keyword set so they can't substring-match many projects at once and turn a
+ * clean match into a false `ambiguous`. Deterministic and locale-independent.
  */
 
 import { resolve, gather } from "./kb.js";
@@ -29,13 +30,14 @@ import type { RetrieveResult } from "./kb.js";
 
 /**
  * Derive ResolveSignals keywords from a free-text query.
- * Split on non-word characters, lowercase, drop empties.
+ * Split on non-word characters, lowercase, drop tokens shorter than 3 chars
+ * (stopword guard — see module header).
  */
 function tokenize(query: string): string[] {
   return query
     .split(/\W+/)
     .map((t) => t.toLowerCase())
-    .filter((t) => t.length > 0);
+    .filter((t) => t.length > 2);
 }
 
 // ---------------------------------------------------------------------------
