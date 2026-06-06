@@ -27,7 +27,7 @@ import { anchorGoal }      from "./loop/guards.js";
 import logger              from "./llm/logger.js";
 
 import type { AgentConfig, AgentEvent, ChatInput, Message } from "./types.js";
-import type { Memory, Adjudicate } from "./memory/index.js";
+import type { Memory, Adjudicate, SyncResult } from "./memory/index.js";
 import type { SkillProvider } from "./loop/tools.js";
 
 // ---------------------------------------------------------------------------
@@ -36,9 +36,8 @@ import type { SkillProvider } from "./loop/tools.js";
 
 export interface Agent {
   chat(input: ChatInput): AsyncGenerator<AgentEvent, void>;
-  // run / sync added in P7.2 — forward-compatible placeholder shape:
-  // run?(input: ChatInput): Promise<{ response: string; messages: Message[] }>;
-  // sync?(): SyncResult;
+  run(input: ChatInput): Promise<{ response: string; messages: Message[] }>;
+  sync(): SyncResult;
 }
 
 /**
@@ -231,5 +230,49 @@ export function createAgent(config: AgentConfig): Agent {
     yield { type: "done", response: result.response, messages: [userMsg, assistantMsg] };
   }
 
-  return { chat };
+  // ------------------------------------------------------------------
+  // run — non-streaming collector: drains chat() and returns the done payload.
+  //
+  // Iterates ALL events so the generator is fully drained (no dangling iterator
+  // state). token events are concatenated for diagnostic parity-checking.
+  // The authoritative response comes from the `done` event (not the concatenation)
+  // because the ReAct loop may emit partial tokens and then normalise the final
+  // response in the done event.
+  // ------------------------------------------------------------------
+  async function run(input: ChatInput): Promise<{ response: string; messages: Message[] }> {
+    let collected = "";
+    let donePayload: { response: string; messages: Message[] } | undefined;
+
+    for await (const event of chat(input)) {
+      if (event.type === "token") {
+        collected += event.text;
+      } else if (event.type === "done") {
+        donePayload = { response: event.response, messages: event.messages };
+        // Continue draining — do NOT break here so the generator completes cleanly.
+      }
+    }
+
+    if (donePayload === undefined) {
+      // Should never happen: chat() always yields a done event.
+      throw new Error("[agent] run(): chat generator completed without a done event");
+    }
+
+    if (collected !== donePayload.response) {
+      logger.debug("[agent] run(): collected tokens differ from done.response", {
+        collected,
+        response: donePayload.response,
+      });
+    }
+
+    return donePayload;
+  }
+
+  // ------------------------------------------------------------------
+  // sync — delegate to memory.sync() (Layer 1 git stage→commit→pull→push).
+  // ------------------------------------------------------------------
+  function sync(): SyncResult {
+    return memory.sync();
+  }
+
+  return { chat, run, sync };
 }

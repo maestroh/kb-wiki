@@ -227,3 +227,67 @@ describe("createAgent — chat() generator", () => {
     expect(captured?.name).toBe(STUB_PROJECT_NAME);
   });
 });
+
+// ---------------------------------------------------------------------------
+// run() collector tests
+// ---------------------------------------------------------------------------
+
+describe("createAgent — run() collector", () => {
+  it("returns response and [user, assistant] messages", async () => {
+    const agent = createAgent({
+      llm: makeStubLLM(),
+      memory: { kbPath: kb },
+    });
+
+    const message = "We deploy via Fly.io and use Postgres.";
+    const result = await agent.run({ history: [], message });
+
+    expect(result.response).toBe(STUB_RESPONSE);
+    expect(result.messages).toHaveLength(2);
+    expect(result.messages[0].role).toBe("user");
+    expect((result.messages[0] as { role: string; content: string }).content).toBe(message);
+    expect(result.messages[1].role).toBe("assistant");
+    expect((result.messages[1] as { role: string; content: string }).content).toBe(STUB_RESPONSE);
+  });
+
+  it("run() response matches chat() done event response (parity)", async () => {
+    const message = "Parity check message.";
+
+    // Drain chat() to get its done event response
+    const agentChat = createAgent({
+      llm: makeStubLLM(),
+      memory: { kbPath: kb },
+    });
+    let chatResponse: string | undefined;
+    for await (const event of agentChat.chat({ history: [], message })) {
+      if (event.type === "done") chatResponse = event.response;
+    }
+
+    // Make a fresh KB for the run() agent so registries don't conflict
+    const kb2 = mkdtempSync(join(tmpdir(), "kb-agent-run-parity-"));
+    writeFileSync(join(kb2, "_index.md"), makeRootIndex([]));
+    try {
+      const agentRun = createAgent({
+        llm: makeStubLLM(),
+        memory: { kbPath: kb2 },
+      });
+      const { response } = await agentRun.run({ history: [], message });
+      expect(response).toBe(chatResponse);
+    } finally {
+      rmSync(kb2, { recursive: true, force: true });
+    }
+  });
+
+  it("run() awaits capture — project is in registry after run()", async () => {
+    const agent = createAgent({
+      llm: makeStubLLM(),
+      memory: { kbPath: kb },
+    });
+
+    await agent.run({ history: [], message: "We deploy via Fly.io and use Postgres." });
+
+    const root = readRoot(kb);
+    const captured = root.projects.find((p) => p.name === STUB_PROJECT_NAME);
+    expect(captured).toBeTruthy();
+  });
+});
