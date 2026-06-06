@@ -2,7 +2,7 @@
  * agent.ts — Public API: createAgent + streaming chat() generator.
  *
  * `createAgent(config)` wires together skills, memory, and the ReAct loop and
- * returns a `{ chat }` object (run/sync added in P7.2).
+ * returns a `{ chat, run, sync }` object.
  *
  * chat({ history, message }) is an async generator that:
  *   1. Initialises the system prompt (coreFacts + systemPrompt + anchorGoal).

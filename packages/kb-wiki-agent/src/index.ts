@@ -5,6 +5,9 @@ export const version = "0.1.0";
 // ---------------------------------------------------------------------------
 export { createAgent } from "./agent.js";
 export type { Agent } from "./agent.js";
+// SyncResult is the return type of Agent.sync() — re-exported so hosts can
+// type the result without reaching into internal modules.
+export type { SyncResult } from "./memory/index.js";
 
 // ---------------------------------------------------------------------------
 // LLM client implementation (hosts can supply a custom LLMClient instead)
