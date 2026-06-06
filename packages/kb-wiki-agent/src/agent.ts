@@ -220,7 +220,11 @@ export function createAgent(config: AgentConfig): Agent {
     // see module-level comment for the full rationale.)
     // maybeCompile is fire-and-forget: it never throws internally.
     try {
-      await memory.capture(result.messages, adjudicate);
+      // Capture only the CURRENT exchange (this user message + this turn's assistant
+      // output), NOT the prior host-owned history — otherwise each turn re-ingests
+      // the whole growing conversation. result.messages = [system, ...history, ...thisTurn].
+      const exchange = result.messages.slice(1 + history.length);
+      await memory.capture(exchange, adjudicate);
       void memory.maybeCompile(config.llm);  // best-effort; swallows errors internally
     } catch (err) {
       logger.error("[agent] capture/compile failed", { err });

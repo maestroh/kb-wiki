@@ -76,7 +76,7 @@ export interface ExecutionResult {
  * Supported script types and their interpreters.
  */
 const SCRIPT_INTERPRETERS: Record<string, string[]> = {
-  '.ts': ['npx', 'ts-node'],
+  '.ts': ['npx', 'tsx'],
   '.js': ['node'],
   '.py': ['python3'],
   '.sh': ['bash'],

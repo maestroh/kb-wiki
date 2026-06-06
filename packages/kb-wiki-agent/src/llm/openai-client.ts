@@ -116,6 +116,7 @@ export class OpenAIClient implements LLMClient {
         temperature: request.temperature ?? this.config.temperature ?? 0.7,
         max_tokens: request.maxTokens,
         tools: request.tools ? this.convertToolsToOpenAIFormat(request.tools) : undefined,
+        ...(request.toolChoice ? { tool_choice: request.toolChoice } : {}),
         stream: true,
       });
 
