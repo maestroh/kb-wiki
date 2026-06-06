@@ -18,19 +18,7 @@ import type { Adjudicate } from "./resolve-project.js";
 import { ensureProject } from "./ensure-project.js";
 import { ingest } from "./kb.js";
 import type { ResolveSignals } from "./kb.js";
-
-// ---------------------------------------------------------------------------
-// Tokenizer — MUST match recall.ts's tokenizer for consistent resolution.
-// Split on non-word characters, lowercase, drop tokens shorter than 3 chars
-// (stopword guard: keeps "the", "a", "of", "are" out of keyword sets).
-// ---------------------------------------------------------------------------
-
-function tokenize(text: string): string[] {
-  return text
-    .split(/\W+/)
-    .map((t) => t.toLowerCase())
-    .filter((t) => t.length > 2);
-}
+import { tokenize } from "./tokenize.js";
 
 // ---------------------------------------------------------------------------
 // capture
@@ -65,7 +53,8 @@ export async function capture(
   }
 
   // ── 2. Build ResolveSignals from cleaned text ─────────────────────────────
-  // Tokenizer mirrors recall.ts so keyword resolution behaves consistently.
+  // Shared tokenizer (tokenize.ts) ensures keyword resolution is consistent
+  // between the write path here and the read path in recall.ts.
   const keywords = tokenize(text);
   const signals: ResolveSignals = { keywords };
 

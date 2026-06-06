@@ -14,31 +14,13 @@
  * than dumping all projects. The agent (P6/P7) can decide whether to ask the
  * user to clarify or proceed without KB context.
  *
- * TOKENIZATION — splits the free-text query on any run of non-word characters
- * (\W+), lowercases each token, and drops tokens shorter than 3 characters.
- * The length floor keeps stopwords ("the", "a", "of", "are") out of the
- * keyword set so they can't substring-match many projects at once and turn a
- * clean match into a false `ambiguous`. Deterministic and locale-independent.
+ * TOKENIZATION — delegated to tokenize.ts (shared with capture.ts so both
+ * paths use identical keyword derivation). See that module for details.
  */
 
 import { resolve, gather } from "./kb.js";
 import type { RetrieveResult } from "./kb.js";
-
-// ---------------------------------------------------------------------------
-// Tokenize
-// ---------------------------------------------------------------------------
-
-/**
- * Derive ResolveSignals keywords from a free-text query.
- * Split on non-word characters, lowercase, drop tokens shorter than 3 chars
- * (stopword guard — see module header).
- */
-function tokenize(query: string): string[] {
-  return query
-    .split(/\W+/)
-    .map((t) => t.toLowerCase())
-    .filter((t) => t.length > 2);
-}
+import { tokenize } from "./tokenize.js";
 
 // ---------------------------------------------------------------------------
 // Format a single project's RetrieveResult into a context block

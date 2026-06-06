@@ -8,7 +8,7 @@
  */
 
 import { describe, it, expect, beforeEach, afterEach } from "vitest";
-import { mkdtempSync, writeFileSync, mkdirSync, existsSync, rmSync, readFileSync } from "node:fs";
+import { mkdtempSync, writeFileSync, mkdirSync, existsSync, rmSync, readFileSync, readdirSync } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { capture } from "./capture.js";
@@ -181,7 +181,6 @@ describe("capture — all-plumbing exchange → no ingest", () => {
 
     // No raw notes were written
     const rawNotes = join(kb, "projects", "typescript-notes", "raw", "notes");
-    const { readdirSync } = await import("node:fs");
     const files = existsSync(rawNotes) ? readdirSync(rawNotes) : [];
     expect(files.length).toBe(0);
   });
