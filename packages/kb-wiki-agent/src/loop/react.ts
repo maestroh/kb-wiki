@@ -53,6 +53,19 @@ import {
 } from "./guards.js";
 
 // ---------------------------------------------------------------------------
+// Guard-message constants (shared with tests via export)
+// ---------------------------------------------------------------------------
+
+export const BACKOFF_MESSAGE = (name: string) =>
+  `tool "${name}" is temporarily disabled after repeated failures — route around it or finish.`;
+
+export const REPEAT_MESSAGE = (name: string) =>
+  `You already ran ${name} with these exact arguments; the result is earlier in this conversation. Do something different or give your final answer.`;
+
+export const BUDGET_MESSAGE =
+  "You are out of step/tool budget. Provide your best final answer now. Do not call any tools.";
+
+// ---------------------------------------------------------------------------
 // Public API
 // ---------------------------------------------------------------------------
 
@@ -89,7 +102,7 @@ export async function* runLoop(
   // step: 1-indexed count of completed turns.
   // tokens: best-effort cumulative token count — stays ~0 with streaming (see header).
   let step = 0;
-  const tokens = 0;
+  let tokens = 0; // always 0 until the LLM stream exposes usage metadata; step budget is the operative guard
 
   // -------------------------------------------------------------------------
   // Main loop
@@ -139,12 +152,13 @@ export async function* runLoop(
     // Build the OpenAI-style assistant tool-call message.
     // Synthetic ids: call_<step>_<i> — consistent with corresponding tool messages.
     // Cast to Message: OpenAI's ChatCompletionAssistantMessageParam accepts this shape.
+    const ids = toolCalls.map((_, i) => `call_${step}_${i}`);
     const assistantMsg = {
       role: "assistant" as const,
       // OpenAI requires content to be string | null when tool_calls is present
       content: content || null,
       tool_calls: toolCalls.map((tc, i) => ({
-        id: `call_${step}_${i}`,
+        id: ids[i],
         type: "function" as const,
         function: {
           name: tc.name,
@@ -159,7 +173,7 @@ export async function* runLoop(
     // ------------------------------------------------------------------
     for (let i = 0; i < toolCalls.length; i++) {
       const tc = toolCalls[i];
-      const id = `call_${step}_${i}`;
+      const id = ids[i];
       const { name, arguments: args } = tc;
 
       // --- Backoff guard ---
@@ -167,7 +181,7 @@ export async function* runLoop(
         msgs.push({
           role: "tool",
           tool_call_id: id,
-          content: `tool "${name}" is temporarily disabled after repeated failures — route around it or finish.`,
+          content: BACKOFF_MESSAGE(name),
         });
         yield { type: "tool_result", name, ok: false };
         continue;
@@ -179,7 +193,7 @@ export async function* runLoop(
         msgs.push({
           role: "tool",
           tool_call_id: id,
-          content: `You already ran ${name} with these exact arguments; the result is earlier in this conversation. Do something different or give your final answer.`,
+          content: REPEAT_MESSAGE(name),
         });
         yield { type: "tool_result", name, ok: false };
         continue;
@@ -212,6 +226,9 @@ export async function* runLoop(
  * disabled.  Any tool calls the model attempts are silently ignored (we
  * collect only content).  Appends the final assistant message and returns.
  *
+ * NOTE: Mutates the passed `msgs` array in place — pushes the budget user
+ * message and the final assistant message.
+ *
  * This is a generator so we can yield token events with `yield*`.
  */
 async function* forcedFinalTurn(
@@ -221,8 +238,7 @@ async function* forcedFinalTurn(
   // Inject the budget-exhaustion instruction
   msgs.push({
     role: "user",
-    content:
-      "You are out of step/tool budget. Provide your best final answer now. Do not call any tools.",
+    content: BUDGET_MESSAGE,
   });
 
   // Stream with tools disabled

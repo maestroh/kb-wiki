@@ -18,7 +18,7 @@
  */
 
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { runLoop } from "./react";
+import { runLoop, REPEAT_MESSAGE, BUDGET_MESSAGE } from "./react";
 import type { LLMClient, LLMChunk, LLMRequest, AgentEvent, Message } from "../types";
 import type { ToolRegistry } from "./tools";
 
@@ -282,12 +282,12 @@ describe("runLoop — Test B: repeat detection forces termination", () => {
 
     const { result } = await drainLoop(gen);
 
-    // Look for the "already ran" message in the transcript
+    // Look for the repeat-guard message in the transcript
     const repeatMsg = result.messages.find(
       (m) =>
         m.role === "tool" &&
         typeof (m as any).content === "string" &&
-        (m as any).content.includes("already ran")
+        (m as any).content === REPEAT_MESSAGE("recall")
     );
     expect(repeatMsg).toBeDefined();
   });
@@ -370,7 +370,7 @@ describe("runLoop — Test C: step budget forces final turn", () => {
       (m) =>
         m.role === "user" &&
         typeof (m as any).content === "string" &&
-        (m as any).content.includes("budget")
+        (m as any).content === BUDGET_MESSAGE
     );
     expect(budgetMsg).toBeDefined();
   });
