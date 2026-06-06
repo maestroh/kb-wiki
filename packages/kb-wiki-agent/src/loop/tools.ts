@@ -144,7 +144,13 @@ export function buildTools(
 
     try {
       const scriptName: string = args?.script ?? "";
-      const scriptArgs: string[] = Array.isArray(args?.args) ? args.args : [];
+      if (!scriptName) {
+        return { ok: false, output: `tool "${name}" requires a "script" argument` };
+      }
+      // Coerce args to strings — some providers emit non-string array items.
+      const scriptArgs: string[] = Array.isArray(args?.args)
+        ? args.args.map(String)
+        : [];
       const res = await skills.executeScript(name, scriptName, scriptArgs);
       if (res.success) {
         return { ok: true, output: res.stdout };
