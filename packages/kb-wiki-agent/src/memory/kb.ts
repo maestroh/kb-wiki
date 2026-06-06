@@ -18,6 +18,11 @@ export { listFacts,
          addFact }          from "kb-wiki-scripts/core.js";
 export { sync,
          tokenizeRemoteUrl } from "kb-wiki-scripts/sync.js";
+export { readRoot,
+         writeRoot,
+         upsertProject }    from "kb-wiki-scripts/registry.js";
+export { parseDoc,
+         stringifyDoc }     from "kb-wiki-scripts/contract.js";
 
 // ── Types ────────────────────────────────────────────────────────────────────
 export type { CompilePlan,
@@ -35,7 +40,8 @@ export type { ResolveSignals,
 // Shapes surfaced through CompilePlan / RetrieveResult / ResolveResult that
 // downstream memory units (recall, compile) need to annotate intermediates.
 export type { ArticleEntry } from "kb-wiki-scripts/index-sections.js";
-export type { ProjectRegistryEntry } from "kb-wiki-scripts/contract.js";
+export type { ProjectRegistryEntry,
+              RootFrontmatter } from "kb-wiki-scripts/contract.js";
 
 // ── resolve convenience wrapper ───────────────────────────────────────────────
 // Composes readRoot + matchProject so callers can resolve from a kbRoot path
