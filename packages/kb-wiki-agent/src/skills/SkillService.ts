@@ -5,15 +5,15 @@
 import * as path from 'path';
 import { fileURLToPath } from 'url';
 import { LoadedSkill } from './models';
-
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
 import { DiscoveryConfig, DiscoveredSkill, DiscoveryResult, discoverSkills, watchSkills } from './discovery';
 import { loadSkill, loadReference, loadAsset, getScriptPath } from './loader';
 import { toPrompt, getSkillUsageInstructions } from './prompt';
 import { SkillExecutor, ExecutorConfig, ExecutionResult } from './executor';
 import { ExecutionHistory, getExecutionHistory, SkillExecution } from './execution-history';
 import logger from '../llm/logger';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 /**
  * Configuration for the SkillService.
