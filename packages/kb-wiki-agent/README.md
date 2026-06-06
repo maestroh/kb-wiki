@@ -63,8 +63,9 @@ const { response, messages } = await agent.run({
 });
 
 // ── sync memory to its git remote ─────────────────────────────────────────
-// The only deliberate, host-triggered memory operation:
-await agent.sync();
+// The only deliberate, host-triggered memory operation. Synchronous (blocking
+// git via execSync) — returns a SyncResult, not a Promise:
+const result = agent.sync();
 ```
 
 ### AgentEvent union
