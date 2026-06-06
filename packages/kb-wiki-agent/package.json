@@ -13,10 +13,12 @@
   },
   "dependencies": {
     "gray-matter": "^4.0.3",
+    "js-yaml": "^4.2.0",
     "kb-wiki-scripts": "*",
     "openai": "^4.0.0"
   },
   "devDependencies": {
+    "@types/js-yaml": "^4.0.9",
     "@types/node": "^22.0.0",
     "tsx": "^4.19.0",
     "typescript": "^5.6.0",
