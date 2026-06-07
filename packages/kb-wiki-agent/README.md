@@ -124,6 +124,8 @@ type AgentEvent =
 
 The host never operates memory directly — every exchange is deterministically pre-cleaned and ingested (capture); pending sources are compiled into synthesized wiki articles in the background once a threshold is crossed (compile); and `recall` is an internal tool the agent calls on demand, read-merging the clean wiki with still-pending raw so answers are never stale. Core facts are always injected into the system prompt. The only deliberate, host-triggered memory operation is `sync()`, which runs a git stage → commit → pull --rebase → push cycle to push the local KB to its remote.
 
+**Core memory** is the always-loaded tier (`core/_index.md`): small, durable, cross-project facts about the user. Capture/compile never write it — promotion to core is a judgment call, so it has its own write path. The agent owns one half via the built-in **`remember_core`** tool: when it learns a stable, cross-project fact about the user, it calls `remember_core({ fact })` and the fact is appended (idempotently — normalized and deduped) so it's injected into every future conversation. The tool is described to fire only for enduring facts, never transient task detail or secrets.
+
 Capture runs before the `done` event is yielded (not after), so it completes whether or not the consumer drains the generator past `done`.
 
 ---

@@ -19,7 +19,7 @@
 
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { buildTools } from "./tools";
-import type { SkillProvider, RecallProvider } from "./tools";
+import type { SkillProvider, MemoryProvider } from "./tools";
 
 // ---------------------------------------------------------------------------
 // Stubs
@@ -40,10 +40,14 @@ function makeSkills(): SkillProvider & {
   };
 }
 
-function makeMemory(): RecallProvider & {
+function makeMemory(): MemoryProvider & {
   recall: ReturnType<typeof vi.fn>;
+  addCoreFact: ReturnType<typeof vi.fn>;
 } {
-  return { recall: vi.fn((q: string) => `recalled: ${q}`) };
+  return {
+    recall: vi.fn((q: string) => `recalled: ${q}`),
+    addCoreFact: vi.fn((_f: string) => ({ added: true })),
+  };
 }
 
 // ---------------------------------------------------------------------------
@@ -87,16 +91,62 @@ describe("buildTools — defs", () => {
     expect(echoDef.description).toContain("run.sh");
   });
 
-  it("returns only recall def when skills is undefined", () => {
-    const { defs } = buildTools(undefined, makeMemory());
-    expect(defs).toHaveLength(1);
-    expect(defs[0].name).toBe("recall");
+  it('always includes a "remember_core" def', () => {
+    const { defs } = buildTools(makeSkills(), makeMemory());
+    const def = defs.find((d) => d.name === "remember_core");
+    expect(def).toBeDefined();
+    expect(def!.parameters).toMatchObject({
+      type: "object",
+      properties: { fact: { type: "string" } },
+      required: expect.arrayContaining(["fact"]),
+    });
   });
 
-  it("returns only recall def when skills is null", () => {
+  it("returns recall + remember_core defs when skills is undefined", () => {
+    const { defs } = buildTools(undefined, makeMemory());
+    expect(defs.map((d) => d.name).sort()).toEqual(["recall", "remember_core"]);
+  });
+
+  it("returns recall + remember_core defs when skills is null", () => {
     const { defs } = buildTools(null, makeMemory());
-    expect(defs).toHaveLength(1);
-    expect(defs[0].name).toBe("recall");
+    expect(defs.map((d) => d.name).sort()).toEqual(["recall", "remember_core"]);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// dispatch — remember_core
+// ---------------------------------------------------------------------------
+describe("dispatch — remember_core", () => {
+  it("calls memory.addCoreFact with the fact and returns ok:true when added", async () => {
+    const memory = makeMemory();
+    const { dispatch } = buildTools(makeSkills(), memory);
+
+    const result = await dispatch("remember_core", { fact: "User is based in Dubai" });
+
+    expect(memory.addCoreFact).toHaveBeenCalledWith("User is based in Dubai");
+    expect(result.ok).toBe(true);
+    expect(result.output.toLowerCase()).toContain("core memory");
+  });
+
+  it("reports a no-op (still ok:true) when the fact is a duplicate", async () => {
+    const memory = makeMemory();
+    memory.addCoreFact.mockReturnValueOnce({ added: false });
+    const { dispatch } = buildTools(makeSkills(), memory);
+
+    const result = await dispatch("remember_core", { fact: "dup" });
+
+    expect(result.ok).toBe(true);
+    expect(result.output.toLowerCase()).toContain("already");
+  });
+
+  it("returns ok:false for a missing/blank fact and does not call addCoreFact", async () => {
+    const memory = makeMemory();
+    const { dispatch } = buildTools(makeSkills(), memory);
+
+    const result = await dispatch("remember_core", {});
+
+    expect(result.ok).toBe(false);
+    expect(memory.addCoreFact).not.toHaveBeenCalled();
   });
 });
 

@@ -19,7 +19,7 @@
 import { recall as recallFn }           from "./recall.js";
 import { capture as captureFn }         from "./capture.js";
 import { maybeCompile as maybeCompileFn } from "./compile.js";
-import { coreFacts as coreFactsFn }     from "./core.js";
+import { coreFacts as coreFactsFn, addCoreFact as addCoreFactFn } from "./core.js";
 import { sync as syncFn }               from "./kb.js";
 
 import type { Message, LLMClient, MemoryConfig, CompileConfig } from "../types.js";
@@ -59,6 +59,14 @@ export interface Memory {
 
   /** Return core-tier facts from `core/_index.md`. */
   coreFacts(): string[];
+
+  /**
+   * Append a durable, cross-project fact to `core/_index.md`.
+   * Idempotent (normalizes + dedupes); `{ added: false }` for a blank fact
+   * or an existing one. This is the write side of `coreFacts()` and the
+   * backend for the agent's `remember_core` tool.
+   */
+  addCoreFact(fact: string): { added: boolean };
 
   /**
    * Sync the KB repo to its remote (stage → commit → pull --rebase → push).
@@ -107,6 +115,10 @@ export function createMemory(
 
     coreFacts(): string[] {
       return coreFactsFn(kbPath);
+    },
+
+    addCoreFact(fact: string): { added: boolean } {
+      return addCoreFactFn(kbPath, fact);
     },
 
     sync(): SyncResult {

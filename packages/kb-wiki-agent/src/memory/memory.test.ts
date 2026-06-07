@@ -134,7 +134,42 @@ describe("createMemory — five-method surface", () => {
     expect(typeof mem.capture).toBe("function");
     expect(typeof mem.maybeCompile).toBe("function");
     expect(typeof mem.coreFacts).toBe("function");
+    expect(typeof mem.addCoreFact).toBe("function");
     expect(typeof mem.sync).toBe("function");
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Test 1b — addCoreFact() writes durable facts to core/_index.md
+// ---------------------------------------------------------------------------
+
+describe("createMemory — addCoreFact()", () => {
+  it("writes a new fact and surfaces it via coreFacts()", () => {
+    writeFileSync(join(kb, "_index.md"), makeRootIndex([]));
+
+    const mem = createMemory({ kbPath: kb });
+    const res = mem.addCoreFact("The user is based in Dubai");
+
+    expect(res).toEqual({ added: true });
+    expect(mem.coreFacts()).toContain("The user is based in Dubai");
+  });
+
+  it("is idempotent — a normalized duplicate is not re-added", () => {
+    writeFileSync(join(kb, "_index.md"), makeRootIndex([]));
+
+    const mem = createMemory({ kbPath: kb });
+    mem.addCoreFact("Prefers vitest for tests");
+    const res = mem.addCoreFact("prefers   VITEST   for tests"); // same after normalize
+
+    expect(res).toEqual({ added: false });
+    expect(mem.coreFacts().filter((f) => /vitest/i.test(f)).length).toBe(1);
+  });
+
+  it("returns { added: false } for a blank fact", () => {
+    writeFileSync(join(kb, "_index.md"), makeRootIndex([]));
+
+    const mem = createMemory({ kbPath: kb });
+    expect(mem.addCoreFact("   ")).toEqual({ added: false });
   });
 });
 
