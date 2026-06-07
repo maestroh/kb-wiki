@@ -1,9 +1,11 @@
 /**
- * tools.ts — Tool registry unifying skills ∪ the built-in `recall` tool.
+ * tools.ts — Tool registry unifying skills ∪ the built-in memory tools
+ * (`recall` read + `remember_core` write).
  *
  * `buildTools(skills, memory)` returns:
  *   - `defs`: array of ToolDefinition objects ready for the LLM request.
- *     Always includes the built-in `recall` tool. Includes one def per skill
+ *     Always includes the built-in `recall` and `remember_core` tools.
+ *     Includes one def per skill
  *     when a SkillProvider is supplied. Skill descriptions are enriched with
  *     the list of available scripts (from loadSkill) so the model knows what
  *     to pass as `script`.
@@ -12,7 +14,7 @@
  *     ReAct loop can handle failures without a try/catch at the call site.
  *
  * Design notes:
- *   - Accepts NARROW structural interfaces (SkillProvider, RecallProvider)
+ *   - Accepts NARROW structural interfaces (SkillProvider, MemoryProvider)
  *     rather than the concrete SkillService / Memory classes. This keeps the
  *     module independently testable with tiny stubs while the real objects
  *     satisfy the interfaces structurally (no casting needed at P7.1).
@@ -37,9 +39,14 @@ export interface SkillProvider {
 }
 
 /** Minimal subset of the Memory facade needed by the tool registry. */
-export interface RecallProvider {
+export interface MemoryProvider {
   recall(query: string): string;
+  /** Persist a durable, cross-project fact. Idempotent; see Memory.addCoreFact. */
+  addCoreFact(fact: string): { added: boolean };
 }
+
+/** @deprecated Use {@link MemoryProvider} — kept as an alias for compatibility. */
+export type RecallProvider = MemoryProvider;
 
 // ---------------------------------------------------------------------------
 // Built-in recall ToolDefinition
@@ -62,6 +69,34 @@ const RECALL_DEF: ToolDefinition = {
 };
 
 // ---------------------------------------------------------------------------
+// Built-in remember_core ToolDefinition
+// ---------------------------------------------------------------------------
+
+const REMEMBER_CORE_DEF: ToolDefinition = {
+  name: "remember_core",
+  description:
+    "Save ONE durable, stable fact about the user to always-loaded core memory " +
+    "(injected into every future conversation). Use ONLY for facts that are " +
+    "true across projects and over time — the user's role, enduring " +
+    "preferences, environment, or working style. Do NOT use it for transient " +
+    "task details (those are captured automatically), one-off context, secrets " +
+    "or credentials, or anything the user did not actually assert about " +
+    "themselves. When in doubt, do not call this.",
+  parameters: {
+    type: "object",
+    properties: {
+      fact: {
+        type: "string",
+        description:
+          "A single, self-contained fact about the user, phrased to make sense " +
+          "with no surrounding context (e.g. \"Prefers TypeScript and vitest\").",
+      },
+    },
+    required: ["fact"],
+  },
+};
+
+// ---------------------------------------------------------------------------
 // buildTools
 // ---------------------------------------------------------------------------
 
@@ -74,8 +109,10 @@ export interface ToolRegistry {
  * Build the tool registry for a single agent run.
  *
  * @param skills  A SkillProvider (or null/undefined if skills are unavailable).
- *                When null/undefined, only the built-in `recall` tool is registered.
- * @param memory  A RecallProvider; required — recall is always available.
+ *                When null/undefined, only the built-in `recall` and
+ *                `remember_core` tools are registered.
+ * @param memory  A MemoryProvider; required — `recall` and `remember_core`
+ *                are always available.
  *
  * @returns `{ defs, dispatch }` where:
  *   - `defs` is the array of ToolDefinitions to pass to the LLM.
@@ -84,7 +121,7 @@ export interface ToolRegistry {
  */
 export function buildTools(
   skills: SkillProvider | null | undefined,
-  memory: RecallProvider
+  memory: MemoryProvider
 ): ToolRegistry {
   // ------------------------------------------------------------------
   // Build defs
@@ -121,7 +158,7 @@ export function buildTools(
         })
       : [];
 
-  const defs: ToolDefinition[] = [RECALL_DEF, ...skillDefs];
+  const defs: ToolDefinition[] = [RECALL_DEF, REMEMBER_CORE_DEF, ...skillDefs];
 
   // ------------------------------------------------------------------
   // dispatch — never throws
@@ -135,6 +172,24 @@ export function buildTools(
       const query = String(args?.query ?? "");
       const output = memory.recall(query);
       return { ok: true, output };
+    }
+
+    // Route: remember_core
+    if (name === "remember_core") {
+      const fact = String(args?.fact ?? "").trim();
+      if (!fact) {
+        return {
+          ok: false,
+          output: 'tool "remember_core" requires a non-empty "fact" argument',
+        };
+      }
+      const { added } = memory.addCoreFact(fact);
+      return {
+        ok: true,
+        output: added
+          ? "Saved to core memory."
+          : "Already in core memory — no change.",
+      };
     }
 
     // Route: skill
